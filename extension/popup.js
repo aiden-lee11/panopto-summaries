@@ -5,7 +5,6 @@ const outputEl = document.getElementById("output");
 const providerEls = Array.from(document.querySelectorAll('input[name="provider"]'));
 const exportBtn = document.getElementById("exportBtn");
 const forkBtn = document.getElementById("forkBtn");
-const copyDebugBtn = document.getElementById("copyDebugBtn");
 const historyListEl = document.getElementById("historyList");
 
 let latestResult = null;
@@ -578,21 +577,6 @@ async function forkWithContext() {
   setStatus("Opened ChatGPT and inserted context into the message box.");
 }
 
-async function copyForkDebugReport() {
-  const stored = await chrome.storage.local.get([FORK_DEBUG_KEY]);
-  const entries = Array.isArray(stored[FORK_DEBUG_KEY]) ? stored[FORK_DEBUG_KEY] : [];
-  const report = JSON.stringify(
-    {
-      generatedAt: new Date().toISOString(),
-      entries
-    },
-    null,
-    2
-  );
-  await navigator.clipboard.writeText(report);
-  setStatus(`Copied fork debug report (${entries.length} entries).`);
-}
-
 summarizeBtn.addEventListener("click", onSummarizeClick);
 settingsBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
 exportBtn.addEventListener("click", exportSummaryMarkdown);
@@ -601,12 +585,6 @@ forkBtn.addEventListener("click", () => {
     pushForkDebug("fork-error", { message: error?.message || String(error) });
     setStatus("Error");
     setOutput(error?.message || "Failed to fork with context.");
-  });
-});
-copyDebugBtn.addEventListener("click", () => {
-  copyForkDebugReport().catch((error) => {
-    setStatus("Error");
-    setOutput(error?.message || "Failed to copy fork debug report.");
   });
 });
 for (const input of providerEls) {
