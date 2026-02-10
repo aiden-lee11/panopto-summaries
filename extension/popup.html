@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panopto Summarizer</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        min-width: 360px;
+        max-width: 360px;
+        font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .wrap {
+        padding: 12px;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .provider-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .provider-option {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #7774;
+        border-radius: 8px;
+        padding: 6px 8px;
+      }
+      button {
+        border: 1px solid #7774;
+        background: #2f6fed;
+        color: #fff;
+        border-radius: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: transparent;
+        color: inherit;
+      }
+      #status {
+        margin: 8px 0;
+        white-space: pre-wrap;
+      }
+      #output {
+        border: 1px solid #7774;
+        border-radius: 8px;
+        padding: 10px;
+        min-height: 160px;
+        max-height: 360px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+      .hint {
+        opacity: 0.8;
+        margin-top: 6px;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        align-items: center;
+      }
+      .history {
+        margin-top: 12px;
+        border-top: 1px solid #7774;
+        padding-top: 10px;
+      }
+      .history h2 {
+        margin: 0 0 8px;
+        font-size: 13px;
+      }
+      .history-item {
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        color: inherit;
+        border: 1px solid #7774;
+        border-radius: 8px;
+        padding: 7px 8px;
+        margin-bottom: 6px;
+      }
+      .history-empty {
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Panopto Summarizer</h1>
+      <div class="provider-row">
+        <label class="provider-option">
+          <input type="radio" name="provider" value="openai" checked />
+          OpenAI
+        </label>
+        <label class="provider-option">
+          <input type="radio" name="provider" value="gemini" />
+          Gemini
+        </label>
+      </div>
+      <div class="row">
+        <button id="summarizeBtn">Summarize Current Lecture</button>
+        <button class="secondary" id="settingsBtn">Settings</button>
+      </div>
+      <div id="status">Ready.</div>
+      <div id="output">Summary will appear here.</div>
+      <div class="actions">
+        <button class="secondary" id="exportBtn" disabled>Export .md</button>
+        <button class="secondary" id="forkBtn" disabled>Fork to ChatGPT</button>
+        <button class="secondary" id="copyDebugBtn">Copy Fork Debug</button>
+      </div>
+      <div class="hint">Uses one API call with your selected provider.</div>
+      <div class="history">
+        <h2>Recent Summaries</h2>
+        <div id="historyList" class="history-empty">No saved summaries yet.</div>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+  </html>

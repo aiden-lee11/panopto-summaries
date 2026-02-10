@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panopto Summarizer Settings</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 24px;
+        font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        max-width: 760px;
+      }
+      h1 {
+        margin-top: 0;
+      }
+      label {
+        display: block;
+        margin: 12px 0 6px;
+        font-weight: 600;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #7774;
+      }
+      select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #7774;
+      }
+      button {
+        margin-top: 14px;
+        border: 1px solid #7774;
+        background: #2f6fed;
+        color: #fff;
+        border-radius: 8px;
+        padding: 9px 12px;
+        cursor: pointer;
+      }
+      #status {
+        margin-top: 12px;
+      }
+      .warn {
+        margin-top: 14px;
+        padding: 10px;
+        border: 1px solid #d97706;
+        border-radius: 8px;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Panopto Summarizer Settings</h1>
+    <p>Paste API keys from your local <code>.env</code> file.</p>
+
+    <label for="preferredProvider">Default Provider</label>
+    <select id="preferredProvider">
+      <option value="openai">OpenAI</option>
+      <option value="gemini">Gemini</option>
+    </select>
+
+    <label for="openaiApiKey">OpenAI API Key</label>
+    <input id="openaiApiKey" type="password" placeholder="sk-..." autocomplete="off" />
+
+    <label for="openaiModel">OpenAI Model</label>
+    <input id="openaiModel" type="text" value="gpt-5-mini" />
+
+    <label for="geminiApiKey">Gemini API Key</label>
+    <input id="geminiApiKey" type="password" placeholder="AIza..." autocomplete="off" />
+
+    <label for="geminiModel">Gemini Model (free-tier friendly)</label>
+    <input id="geminiModel" type="text" value="gemini-2.0-flash" />
+
+    <button id="saveBtn">Save Settings</button>
+    <div id="status"></div>
+
+    <div class="warn">
+      This local prototype stores API keys in <code>chrome.storage.local</code>. Do not publish this version with direct key usage.
+    </div>
+
+    <script src="options.js"></script>
+  </body>
+  </html>
