@@ -122,6 +122,21 @@ function buildForkPromptText(result) {
   ].join("\n");
 }
 
+function moveCaretToStartContentEditable(el) {
+  try {
+    const selection = window.getSelection();
+    if (!selection) return false;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 async function waitForTabLoad(tabId, timeoutMs = 20000) {
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -143,10 +158,57 @@ async function waitForTabLoad(tabId, timeoutMs = 20000) {
 }
 
 async function injectPromptIntoChatGpt(tabId, promptText) {
-  const [{ result }] = await chrome.scripting.executeScript({
+  const executionResults = await chrome.scripting.executeScript({
     target: { tabId },
     func: async (text) => {
       const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      function moveCaretToStart(el) {
+        if (!el) return false;
+        el.focus();
+        if (el instanceof HTMLTextAreaElement) {
+          try {
+            el.setSelectionRange(0, 0);
+            return el.selectionStart === 0;
+          } catch (_error) {
+            return false;
+          }
+        }
+        try {
+          const selection = window.getSelection();
+          if (!selection) return false;
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          return selection.anchorOffset === 0;
+        } catch (_error) {
+          return false;
+        }
+      }
+      function installCaretGuard(selector, durationMs = 3500) {
+        const startedAt = Date.now();
+        const tick = () => {
+          const el = document.querySelector(selector);
+          if (el) {
+            moveCaretToStart(el);
+          }
+          if (Date.now() - startedAt >= durationMs) {
+            clearInterval(intervalId);
+            document.removeEventListener("selectionchange", onSelectionChange, true);
+          }
+        };
+        const onSelectionChange = () => {
+          const active = document.activeElement;
+          if (!active) return;
+          if (active.matches?.(selector)) {
+            moveCaretToStart(active);
+          }
+        };
+        const intervalId = setInterval(tick, 120);
+        document.addEventListener("selectionchange", onSelectionChange, true);
+        tick();
+      }
       const selectors = [
         "#prompt-textarea",
         'textarea[placeholder*="Message"]',
@@ -189,13 +251,17 @@ async function injectPromptIntoChatGpt(tabId, promptText) {
           }
           inputEl.dispatchEvent(new Event("input", { bubbles: true }));
           inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+          const caretAtStart = moveCaretToStart(inputEl);
+          installCaretGuard(matchedSelector);
           return {
             ok: true,
             mode: "textarea",
             selector: matchedSelector,
             valueLength: inputEl.value.length,
+            caretAtStart,
             url: location.href,
-            title: document.title
+            title: document.title,
+            caretGuardInstalled: true
           };
         }
 
@@ -233,14 +299,18 @@ async function injectPromptIntoChatGpt(tabId, promptText) {
           })
         );
         inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+        const caretMoved = moveCaretToStart(inputEl);
+        installCaretGuard(matchedSelector);
         return {
           ok: true,
           mode: "contenteditable",
           selector: matchedSelector,
           valueLength: (inputEl.textContent || "").length,
           insertMethod: insertedWithExecCommand ? "execCommand-insertText" : "dom-fallback",
+          caretAtStart: caretMoved,
           url: location.href,
-          title: document.title
+          title: document.title,
+          caretGuardInstalled: true
         };
       }
 
@@ -265,7 +335,11 @@ async function injectPromptIntoChatGpt(tabId, promptText) {
     args: [promptText]
   });
 
-  return result;
+  const first = executionResults?.[0];
+  if (!first) {
+    return { ok: false, reason: "no-execute-script-result" };
+  }
+  return first.result || { ok: false, reason: "empty-execute-script-result" };
 }
 
 function updateActionButtons() {
@@ -460,7 +534,7 @@ async function forkWithContext() {
   await navigator.clipboard.writeText(context);
   pushForkDebug("clipboard-write", { ok: true });
 
-  const tab = await chrome.tabs.create({ url: "https://chatgpt.com/?temporary-chat=true" });
+  const tab = await chrome.tabs.create({ url: "https://chatgpt.com/" });
   pushForkDebug("tab-created", {
     tabId: tab?.id || null,
     tabUrl: tab?.url || null
