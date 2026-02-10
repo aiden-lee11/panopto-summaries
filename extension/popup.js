@@ -12,6 +12,7 @@ let latestResult = null;
 const HISTORY_KEY = "summaryHistory";
 const MAX_HISTORY = 5;
 const FORK_DEBUG_KEY = "lastForkDebug";
+const CHATGPT_FORK_URL = "https://chatgpt.com/?model=auto";
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -219,6 +220,13 @@ async function injectPromptIntoChatGpt(tabId, promptText) {
         'div[contenteditable="true"][role="textbox"]',
         'div[contenteditable="true"][data-lexical-editor="true"]'
       ];
+      const newChatSelectors = [
+        'a[href="/"]',
+        'button[aria-label*="New chat"]',
+        'button[data-testid*="new-chat"]',
+        '[data-testid="create-new-chat-button"]'
+      ];
+      let clickedNewChat = false;
 
       const start = Date.now();
       const maxWaitMs = 15000;
@@ -234,6 +242,17 @@ async function injectPromptIntoChatGpt(tabId, promptText) {
           }
         }
         if (!inputEl) {
+          // In non-temporary mode ChatGPT may open on a prior thread; try forcing a new chat once.
+          if (!clickedNewChat && Date.now() - start > 1500) {
+            for (const selector of newChatSelectors) {
+              const newChatEl = document.querySelector(selector);
+              if (newChatEl instanceof HTMLElement) {
+                newChatEl.click();
+                clickedNewChat = true;
+                break;
+              }
+            }
+          }
           await sleep(300);
           continue;
         }
@@ -261,7 +280,8 @@ async function injectPromptIntoChatGpt(tabId, promptText) {
             caretAtStart,
             url: location.href,
             title: document.title,
-            caretGuardInstalled: true
+            caretGuardInstalled: true,
+            clickedNewChat
           };
         }
 
@@ -310,7 +330,8 @@ async function injectPromptIntoChatGpt(tabId, promptText) {
           caretAtStart: caretMoved,
           url: location.href,
           title: document.title,
-          caretGuardInstalled: true
+          caretGuardInstalled: true,
+          clickedNewChat
         };
       }
 
@@ -329,7 +350,8 @@ async function injectPromptIntoChatGpt(tabId, promptText) {
         url: location.href,
         title: document.title,
         editableCount,
-        textareaCount
+        textareaCount,
+        clickedNewChat
       };
     },
     args: [promptText]
@@ -534,7 +556,7 @@ async function forkWithContext() {
   await navigator.clipboard.writeText(context);
   pushForkDebug("clipboard-write", { ok: true });
 
-  const tab = await chrome.tabs.create({ url: "https://chatgpt.com/" });
+  const tab = await chrome.tabs.create({ url: CHATGPT_FORK_URL });
   pushForkDebug("tab-created", {
     tabId: tab?.id || null,
     tabUrl: tab?.url || null
