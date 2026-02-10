@@ -1,9 +1,16 @@
+import { jsPDF } from "jspdf";
+
 const summarizeBtn = document.getElementById("summarizeBtn");
 const settingsBtn = document.getElementById("settingsBtn");
 const statusEl = document.getElementById("status");
 const outputEl = document.getElementById("output");
 const providerEls = Array.from(document.querySelectorAll('input[name="provider"]'));
+const promptPresetEl = document.getElementById("promptPreset");
+const promptBehaviorEl = document.getElementById("promptBehavior");
+const customInstructionGroupEl = document.getElementById("customInstructionGroup");
+const customInstructionEl = document.getElementById("customInstruction");
 const exportBtn = document.getElementById("exportBtn");
+const exportPdfBtn = document.getElementById("exportPdfBtn");
 const forkBtn = document.getElementById("forkBtn");
 const historyListEl = document.getElementById("historyList");
 
@@ -19,6 +26,13 @@ function setStatus(message) {
 
 function setOutput(message) {
   outputEl.textContent = message;
+}
+
+function updateCustomInstructionVisibility() {
+  const hide = promptBehaviorEl?.value === "no_custom_prompt";
+  if (customInstructionGroupEl) {
+    customInstructionGroupEl.style.display = hide ? "none" : "";
+  }
 }
 
 function pushForkDebug(event, data = {}) {
@@ -78,6 +92,12 @@ function buildExportFilename(result) {
   const date = new Date(result.generatedAt).toISOString().slice(0, 10);
   const topic = deriveSummaryTopicSlug(result.summaryMarkdown);
   return `${date}-${topic}.md`;
+}
+
+function buildPdfFilename(result) {
+  const date = new Date(result.generatedAt).toISOString().slice(0, 10);
+  const topic = deriveSummaryTopicSlug(result.summaryMarkdown);
+  return `${date}-${topic}.pdf`;
 }
 
 function buildContextMarkdown(result) {
@@ -366,6 +386,7 @@ async function injectPromptIntoChatGpt(tabId, promptText) {
 function updateActionButtons() {
   const enabled = Boolean(latestResult?.summaryMarkdown);
   exportBtn.disabled = !enabled;
+  exportPdfBtn.disabled = !enabled;
   forkBtn.disabled = !enabled;
 }
 
@@ -447,11 +468,28 @@ async function extractTranscript(tabId) {
 
 async function summarizeTranscript(transcriptPayload) {
   const provider = getSelectedProvider();
+  const promptConfig = getPromptConfigFromPopup();
   return chrome.runtime.sendMessage({
     type: "SUMMARIZE_TRANSCRIPT",
     payload: transcriptPayload,
-    provider
+    provider,
+    promptPreset: promptConfig.promptPreset,
+    promptBehavior: promptConfig.promptBehavior,
+    customInstruction: promptConfig.customInstruction
   });
+}
+
+function getPromptConfigFromPopup() {
+  return {
+    promptPreset: promptPresetEl?.value || "bullet_points",
+    promptBehavior:
+      promptBehaviorEl?.value === "append_guidance"
+        ? "append_guidance"
+        : promptBehaviorEl?.value === "no_custom_prompt"
+          ? "no_custom_prompt"
+          : "custom_only",
+    customInstruction: customInstructionEl?.value?.trim() || ""
+  };
 }
 
 function getSelectedProvider() {
@@ -460,11 +498,31 @@ function getSelectedProvider() {
 }
 
 async function loadPreferredProvider() {
-  const settings = await chrome.storage.local.get(["preferredProvider"]);
+  const settings = await chrome.storage.local.get([
+    "preferredProvider",
+    "defaultPromptPreset",
+    "defaultPromptBehavior",
+    "defaultCustomInstruction"
+  ]);
   const preferred = settings.preferredProvider || "openai";
   for (const input of providerEls) {
     input.checked = input.value === preferred;
   }
+
+  if (promptPresetEl) {
+    promptPresetEl.value = settings.defaultPromptPreset || "bullet_points";
+  }
+  if (promptBehaviorEl) {
+    promptBehaviorEl.value =
+      settings.defaultPromptBehavior === "append_guidance" ||
+      settings.defaultPromptBehavior === "no_custom_prompt"
+        ? settings.defaultPromptBehavior
+        : "custom_only";
+  }
+  if (customInstructionEl) {
+    customInstructionEl.value = settings.defaultCustomInstruction || "";
+  }
+  updateCustomInstructionVisibility();
 }
 
 function savePreferredProvider() {
@@ -541,6 +599,149 @@ function exportSummaryMarkdown() {
   setStatus(`Exported ${filename}`);
 }
 
+function normalizeInlineMarkdownToText(text) {
+  return String(text)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/_([^_]+)_/g, "$1");
+}
+
+function renderMarkdownToPdf(doc, markdown, result) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 44;
+  const maxWidth = pageWidth - margin * 2;
+  let y = margin;
+  let inCodeBlock = false;
+
+  const ensureSpace = (heightNeeded) => {
+    if (y + heightNeeded > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+  };
+
+  const writeWrapped = (text, opts = {}) => {
+    const {
+      size = 11,
+      style = "normal",
+      indent = 0,
+      prefix = "",
+      font = "helvetica"
+    } = opts;
+    const normalized = normalizeInlineMarkdownToText(text).trim();
+    if (!normalized) {
+      y += size * 0.7;
+      return;
+    }
+
+    doc.setFont(font, style);
+    doc.setFontSize(size);
+    const lineHeight = size * 1.35;
+
+    if (prefix) {
+      const prefixWidth = doc.getTextWidth(`${prefix} `);
+      const firstLineWidth = maxWidth - indent - prefixWidth;
+      const lines = doc.splitTextToSize(normalized, Math.max(60, firstLineWidth));
+      ensureSpace(lineHeight * Math.max(1, lines.length + 0.2));
+      doc.text(`${prefix} ${lines[0] || ""}`, margin + indent, y);
+      y += lineHeight;
+      for (let i = 1; i < lines.length; i += 1) {
+        ensureSpace(lineHeight);
+        doc.text(lines[i], margin + indent + prefixWidth, y);
+        y += lineHeight;
+      }
+      return;
+    }
+
+    const lines = doc.splitTextToSize(normalized, maxWidth - indent);
+    ensureSpace(lineHeight * Math.max(1, lines.length + 0.2));
+    for (const line of lines) {
+      doc.text(line, margin + indent, y);
+      y += lineHeight;
+      ensureSpace(lineHeight);
+    }
+  };
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  writeWrapped(result.sourceTitle || "Panopto Lecture Summary", {
+    size: 18,
+    style: "bold"
+  });
+  writeWrapped(
+    `Generated: ${new Date(result.generatedAt).toLocaleString()} | Provider: ${result.provider}`,
+    { size: 10, style: "normal" }
+  );
+  y += 6;
+
+  const lines = (markdown || "").replace(/\r\n/g, "\n").split("\n");
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+
+    if (line.startsWith("```")) {
+      inCodeBlock = !inCodeBlock;
+      y += 5;
+      continue;
+    }
+
+    if (inCodeBlock) {
+      writeWrapped(rawLine, { size: 10, font: "courier" });
+      continue;
+    }
+
+    if (!line.trim()) {
+      y += 6;
+      ensureSpace(12);
+      continue;
+    }
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      const level = Math.min(headingMatch[1].length, 6);
+      const sizeByLevel = { 1: 16, 2: 14, 3: 13, 4: 12, 5: 11, 6: 10 };
+      y += 2;
+      writeWrapped(headingMatch[2], {
+        size: sizeByLevel[level],
+        style: "bold"
+      });
+      continue;
+    }
+
+    const ulMatch = line.match(/^[-*]\s+(.*)$/);
+    if (ulMatch) {
+      writeWrapped(ulMatch[1], { size: 11, prefix: "•", indent: 8 });
+      continue;
+    }
+
+    const olMatch = line.match(/^(\d+)\.\s+(.*)$/);
+    if (olMatch) {
+      writeWrapped(olMatch[2], { size: 11, prefix: `${olMatch[1]}.`, indent: 8 });
+      continue;
+    }
+
+    writeWrapped(line, { size: 11 });
+  }
+}
+
+function exportSummaryPdf() {
+  if (!latestResult?.summaryMarkdown) {
+    return;
+  }
+
+  const doc = new jsPDF({
+    unit: "pt",
+    format: "letter"
+  });
+  renderMarkdownToPdf(doc, latestResult.summaryMarkdown || "", latestResult);
+  const filename = buildPdfFilename(latestResult);
+  doc.save(filename);
+  setStatus(`Exported ${filename}`);
+}
+
 async function forkWithContext() {
   pushForkDebug("fork-start", {
     hasLatestResult: Boolean(latestResult?.summaryMarkdown)
@@ -580,6 +781,7 @@ async function forkWithContext() {
 summarizeBtn.addEventListener("click", onSummarizeClick);
 settingsBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
 exportBtn.addEventListener("click", exportSummaryMarkdown);
+exportPdfBtn.addEventListener("click", exportSummaryPdf);
 forkBtn.addEventListener("click", () => {
   forkWithContext().catch((error) => {
     pushForkDebug("fork-error", { message: error?.message || String(error) });
@@ -590,10 +792,12 @@ forkBtn.addEventListener("click", () => {
 for (const input of providerEls) {
   input.addEventListener("change", savePreferredProvider);
 }
+promptBehaviorEl?.addEventListener("change", updateCustomInstructionVisibility);
 
 loadPreferredProvider().catch(() => {
   setStatus("Ready.");
 });
+updateCustomInstructionVisibility();
 updateActionButtons();
 refreshHistory().catch(() => {
   historyListEl.textContent = "Failed to load saved summaries.";

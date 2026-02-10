@@ -28,6 +28,16 @@
         border-radius: 8px;
         border: 1px solid #7774;
       }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #7774;
+        min-height: 88px;
+        resize: vertical;
+        font: inherit;
+      }
       select {
         width: 100%;
         box-sizing: border-box;
@@ -67,6 +77,31 @@
       <option value="openai">OpenAI</option>
       <option value="gemini">Gemini</option>
     </select>
+
+    <label for="defaultPromptPreset">Default Prompt Mode</label>
+    <select id="defaultPromptPreset">
+      <option value="custom_instruction_only">Custom Instruction Only</option>
+      <option value="bullet_points">Bullet Points</option>
+      <option value="summary">Summary</option>
+      <option value="quiz_creator">Quiz Creator</option>
+      <option value="study_guide">Study Guide</option>
+      <option value="detailed_notes">Detailed Notes</option>
+    </select>
+
+    <label for="defaultPromptBehavior">Default Prompt Behavior</label>
+    <select id="defaultPromptBehavior">
+      <option value="custom_only">Custom Instruction Only (primary)</option>
+      <option value="append_guidance">Preset + custom guidance</option>
+      <option value="no_custom_prompt">No custom prompt (preset only)</option>
+    </select>
+
+    <div id="defaultCustomInstructionGroup">
+      <label for="defaultCustomInstruction">Default Custom Instruction</label>
+      <textarea
+        id="defaultCustomInstruction"
+        placeholder='Example: "200 word summary of the lecture with 6 bullets on key findings."'
+      ></textarea>
+    </div>
 
     <label for="openaiApiKey">OpenAI API Key</label>
     <input id="openaiApiKey" type="password" placeholder="sk-..." autocomplete="off" />

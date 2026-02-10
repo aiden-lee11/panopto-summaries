@@ -1,18 +1,137 @@
 const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
 const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+const DEFAULT_PROMPT_PRESET = "bullet_points";
+const DEFAULT_PROMPT_BEHAVIOR = "custom_only";
 
-const SUMMARY_INSTRUCTIONS = `You are an expert teaching assistant.
+const BASE_QUALITY_RULES = [
+  "Use only transcript content; do not invent facts.",
+  "Auto-generated captions may contain errors. Correct only obvious speech-to-text mistakes.",
+  "Remove filler/noise when summarizing.",
+  "Preserve important terminology, theories, names, definitions, and arguments.",
+  "If information is unclear, say so briefly instead of guessing."
+];
 
-Summarize the lecture transcript as concise, high-signal bullet points only.
+const PROMPT_PRESETS = {
+  bullet_points: `Output only markdown bullet points.
+- No heading, no preamble, no closing note.
+- Return 12-20 bullets, most important points first.`,
+  summary: `Output a concise markdown summary:
+- 1 short paragraph overview
+- 8-12 bullets for main points
+- 1 short closing line with key takeaway`,
+  quiz_creator: `Create a quiz from this lecture in markdown:
+## Multiple Choice
+- 8 questions, each with 4 options
+- Mark the correct option under each question
 
-Rules:
-- Use only transcript content; do not invent facts.
-- Auto-generated captions may contain mistakes. Correct obvious speech-to-text errors only when confidence is high.
-- Remove filler/noise ("um", repeated words, false starts) in the final summary.
-- Preserve important terminology, theories, names, definitions, and arguments.
-- Output only markdown bullet points.
-- No title, no headings, no numbering, no preamble, no closing note.
-- Return 12-20 bullets, most important points first.`;
+## Short Answer
+- 5 questions
+- Include a brief answer key`,
+  study_guide: `Output a markdown study guide with these sections:
+## Core Concepts
+## Key Mechanisms
+## Important Examples
+## Likely Exam Questions
+Keep each section concise and useful for review.`,
+  detailed_notes: `Output detailed markdown notes:
+## Main Themes
+## Topic-by-Topic Notes
+## Evidence and Examples
+## Open Questions
+Keep structure clear and complete without fluff.`
+};
+
+const PROMPT_PRESET_ALIASES = {
+  bullets_only: "bullet_points",
+  executive_summary: "summary",
+  exam_prep: "quiz_creator"
+};
+
+function normalizePromptPreset(value) {
+  const resolved = PROMPT_PRESET_ALIASES[value] || value;
+  if (resolved === "custom_instruction_only") {
+    return resolved;
+  }
+  return Object.prototype.hasOwnProperty.call(PROMPT_PRESETS, resolved)
+    ? resolved
+    : DEFAULT_PROMPT_PRESET;
+}
+
+function normalizePromptBehavior(value) {
+  if (value === "append_guidance" || value === "no_custom_prompt") {
+    return value;
+  }
+  return DEFAULT_PROMPT_BEHAVIOR;
+}
+
+function buildPromptInstructions({
+  promptPreset,
+  promptBehavior,
+  customInstruction
+}) {
+  const rulesBlock = BASE_QUALITY_RULES.map((rule) => `- ${rule}`).join("\n");
+  const normalizedPreset = normalizePromptPreset(promptPreset);
+  const normalizedBehavior = normalizePromptBehavior(promptBehavior);
+  const trimmedCustom = (customInstruction || "").trim();
+  const effectiveCustom =
+    normalizedBehavior === "no_custom_prompt" ? "" : trimmedCustom;
+
+  if (normalizedPreset === "custom_instruction_only") {
+    if (effectiveCustom) {
+      return `You are an expert teaching assistant.
+
+Primary objective from user:
+${effectiveCustom}
+
+Quality rules:
+${rulesBlock}
+
+Respect the user's requested format and length while following the rules.`;
+    }
+
+    return `You are an expert teaching assistant.
+
+No custom instruction was provided.
+Default to concise markdown bullet points (12-20 bullets, most important first).
+
+Quality rules:
+${rulesBlock}`;
+  }
+
+  if (normalizedBehavior === "custom_only" && effectiveCustom) {
+    return `You are an expert teaching assistant.
+
+Primary objective from user:
+${effectiveCustom}
+
+Quality rules:
+${rulesBlock}
+
+Respect the user's requested format and length while following the rules.`;
+  }
+
+  const presetInstructions = PROMPT_PRESETS[normalizedPreset];
+  if (normalizedBehavior === "append_guidance" && effectiveCustom) {
+    return `You are an expert teaching assistant.
+
+Default output mode:
+${presetInstructions}
+
+Additional user guidance (treat as highest-priority formatting/content guidance when possible):
+${effectiveCustom}
+
+Quality rules:
+${rulesBlock}`;
+  }
+
+  return `You are an expert teaching assistant.
+
+Default output mode:
+${presetInstructions}
+
+Quality rules:
+${rulesBlock}`;
+}
 
 function readOutputText(responseJson) {
   if (typeof responseJson?.output_text === "string" && responseJson.output_text.trim()) {
@@ -48,6 +167,9 @@ function readGeminiOutputText(responseJson) {
 async function getSettings() {
   const stored = await chrome.storage.local.get([
     "preferredProvider",
+    "defaultPromptPreset",
+    "defaultPromptBehavior",
+    "defaultCustomInstruction",
     "openaiApiKey",
     "openaiModel",
     "geminiApiKey",
@@ -55,6 +177,9 @@ async function getSettings() {
   ]);
   return {
     preferredProvider: stored.preferredProvider || "openai",
+    defaultPromptPreset: normalizePromptPreset(stored.defaultPromptPreset),
+    defaultPromptBehavior: normalizePromptBehavior(stored.defaultPromptBehavior),
+    defaultCustomInstruction: stored.defaultCustomInstruction || "",
     openaiApiKey: stored.openaiApiKey || "",
     openaiModel: stored.openaiModel || DEFAULT_OPENAI_MODEL,
     geminiApiKey: stored.geminiApiKey || "",
@@ -62,7 +187,13 @@ async function getSettings() {
   };
 }
 
-async function summarizeWithOpenAI(transcriptText, model, apiKey, signal) {
+async function summarizeWithOpenAI(
+  transcriptText,
+  promptInstructions,
+  model,
+  apiKey,
+  signal
+) {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -74,7 +205,7 @@ async function summarizeWithOpenAI(transcriptText, model, apiKey, signal) {
       input: [
         {
           role: "system",
-          content: [{ type: "input_text", text: SUMMARY_INSTRUCTIONS }]
+          content: [{ type: "input_text", text: promptInstructions }]
         },
         {
           role: "user",
@@ -98,7 +229,13 @@ async function summarizeWithOpenAI(transcriptText, model, apiKey, signal) {
   return outputMarkdown;
 }
 
-async function summarizeWithGemini(transcriptText, model, apiKey, signal) {
+async function summarizeWithGemini(
+  transcriptText,
+  promptInstructions,
+  model,
+  apiKey,
+  signal
+) {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
     {
@@ -112,7 +249,7 @@ async function summarizeWithGemini(transcriptText, model, apiKey, signal) {
             role: "user",
             parts: [
               {
-                text: `${SUMMARY_INSTRUCTIONS}\n\nTranscript:\n${transcriptText}`
+                text: `${promptInstructions}\n\nTranscript:\n${transcriptText}`
               }
             ]
           }
@@ -135,12 +272,18 @@ async function summarizeWithGemini(transcriptText, model, apiKey, signal) {
   return outputMarkdown;
 }
 
-async function summarizeLecture(transcriptText, provider) {
+async function summarizeLecture(transcriptText, provider, promptConfig) {
   const settings = await getSettings();
   const selectedProvider =
     provider === "gemini" || provider === "openai"
       ? provider
       : settings.preferredProvider;
+  const promptInstructions = buildPromptInstructions({
+    promptPreset: promptConfig?.promptPreset || settings.defaultPromptPreset,
+    promptBehavior: promptConfig?.promptBehavior || settings.defaultPromptBehavior,
+    customInstruction:
+      promptConfig?.customInstruction ?? settings.defaultCustomInstruction
+  });
 
   if (selectedProvider === "openai" && !settings.openaiApiKey) {
     throw new Error(
@@ -160,6 +303,7 @@ async function summarizeLecture(transcriptText, provider) {
     if (selectedProvider === "gemini") {
       return await summarizeWithGemini(
         transcriptText,
+        promptInstructions,
         settings.geminiModel,
         settings.geminiApiKey,
         controller.signal
@@ -168,6 +312,7 @@ async function summarizeLecture(transcriptText, provider) {
 
     return await summarizeWithOpenAI(
       transcriptText,
+      promptInstructions,
       settings.openaiModel,
       settings.openaiApiKey,
       controller.signal
@@ -188,7 +333,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return;
   }
 
-  summarizeLecture(transcriptText, message?.provider)
+  summarizeLecture(transcriptText, message?.provider, {
+    promptPreset: message?.promptPreset,
+    promptBehavior: message?.promptBehavior,
+    customInstruction: message?.customInstruction
+  })
     .then((outputMarkdown) => sendResponse({ ok: true, outputMarkdown }))
     .catch((error) => {
       sendResponse({

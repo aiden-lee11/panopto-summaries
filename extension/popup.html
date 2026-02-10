@@ -31,6 +31,13 @@
         gap: 8px;
         margin-bottom: 10px;
       }
+      .prompt-row {
+        margin-bottom: 10px;
+      }
+      .prompt-row label {
+        display: block;
+        margin-bottom: 4px;
+      }
       .provider-option {
         display: inline-flex;
         align-items: center;
@@ -74,6 +81,27 @@
         margin-top: 10px;
         align-items: center;
       }
+      select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 8px;
+        border: 1px solid #7774;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+      }
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 72px;
+        resize: vertical;
+        padding: 8px;
+        border: 1px solid #7774;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+      }
       .history {
         margin-top: 12px;
         border-top: 1px solid #7774;
@@ -111,6 +139,32 @@
           Gemini
         </label>
       </div>
+      <div class="prompt-row">
+        <label for="promptPreset">Prompt Mode</label>
+        <select id="promptPreset">
+          <option value="custom_instruction_only">Custom Instruction Only</option>
+          <option value="bullet_points">Bullet Points</option>
+          <option value="summary">Summary</option>
+          <option value="quiz_creator">Quiz Creator</option>
+          <option value="study_guide">Study Guide</option>
+          <option value="detailed_notes">Detailed Notes</option>
+        </select>
+      </div>
+      <div class="prompt-row">
+        <label for="promptBehavior">Prompt Behavior</label>
+        <select id="promptBehavior">
+          <option value="custom_only">Custom Instruction Only (primary)</option>
+          <option value="append_guidance">Preset + custom guidance</option>
+          <option value="no_custom_prompt">No custom prompt (preset only)</option>
+        </select>
+      </div>
+      <div class="prompt-row" id="customInstructionGroup">
+        <label for="customInstruction">Custom Instruction (override)</label>
+        <textarea
+          id="customInstruction"
+          placeholder='Example: "200 word summary of the lecture."'
+        ></textarea>
+      </div>
       <div class="row">
         <button id="summarizeBtn">Summarize Current Lecture</button>
         <button class="secondary" id="settingsBtn">Settings</button>
@@ -119,6 +173,7 @@
       <div id="output">Summary will appear here.</div>
       <div class="actions">
         <button class="secondary" id="exportBtn" disabled>Export .md</button>
+        <button class="secondary" id="exportPdfBtn" disabled>Export PDF</button>
         <button class="secondary" id="forkBtn" disabled>Fork to ChatGPT</button>
       </div>
       <div class="hint">Uses one API call with your selected provider.</div>
@@ -127,6 +182,6 @@
         <div id="historyList" class="history-empty">No saved summaries yet.</div>
       </div>
     </div>
-    <script src="popup.js"></script>
+    <script src="popup.bundle.js"></script>
   </body>
   </html>
