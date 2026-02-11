@@ -142,6 +142,167 @@ function buildForkPromptText(result) {
   ].join("\n");
 }
 
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function applyInlineMarkdown(text) {
+  let html = escapeHtml(text);
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  return html;
+}
+
+function markdownToHtml(markdown) {
+  const lines = (markdown || "").replace(/\r\n/g, "\n").split("\n");
+  const out = [];
+  let inCodeBlock = false;
+  let inUl = false;
+  let inOl = false;
+
+  const closeLists = () => {
+    if (inUl) {
+      out.push("</ul>");
+      inUl = false;
+    }
+    if (inOl) {
+      out.push("</ol>");
+      inOl = false;
+    }
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+
+    if (line.startsWith("```")) {
+      closeLists();
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        out.push("<pre><code>");
+      } else {
+        inCodeBlock = false;
+        out.push("</code></pre>");
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      out.push(`${escapeHtml(rawLine)}\n`);
+      continue;
+    }
+
+    if (!line.trim()) {
+      closeLists();
+      out.push("<p></p>");
+      continue;
+    }
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      closeLists();
+      const level = headingMatch[1].length;
+      out.push(`<h${level}>${applyInlineMarkdown(headingMatch[2])}</h${level}>`);
+      continue;
+    }
+
+    const ulMatch = line.match(/^[-*]\s+(.*)$/);
+    if (ulMatch) {
+      if (inOl) {
+        out.push("</ol>");
+        inOl = false;
+      }
+      if (!inUl) {
+        inUl = true;
+        out.push("<ul>");
+      }
+      out.push(`<li>${applyInlineMarkdown(ulMatch[1])}</li>`);
+      continue;
+    }
+
+    const olMatch = line.match(/^\d+\.\s+(.*)$/);
+    if (olMatch) {
+      if (inUl) {
+        out.push("</ul>");
+        inUl = false;
+      }
+      if (!inOl) {
+        inOl = true;
+        out.push("<ol>");
+      }
+      out.push(`<li>${applyInlineMarkdown(olMatch[1])}</li>`);
+      continue;
+    }
+
+    closeLists();
+    out.push(`<p>${applyInlineMarkdown(line)}</p>`);
+  }
+
+  closeLists();
+  if (inCodeBlock) {
+    out.push("</code></pre>");
+  }
+
+  return out.join("\n");
+}
+
+function openRenderedSummaryTab(result) {
+  const summaryHtml = markdownToHtml(result.summaryMarkdown || "");
+  const sourceTitle = escapeHtml(result.sourceTitle || "Panopto Lecture");
+  const generatedAt = escapeHtml(new Date(result.generatedAt).toLocaleString());
+  const provider = escapeHtml(result.provider || "unknown");
+
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${sourceTitle} - Summary</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        max-width: 920px;
+        margin: 28px auto;
+        padding: 0 20px;
+        color: #111;
+        line-height: 1.5;
+      }
+      h1, h2, h3 { margin: 0.9em 0 0.4em; }
+      .meta {
+        margin-bottom: 14px;
+        color: #444;
+        font-size: 13px;
+      }
+      pre {
+        background: #f6f6f6;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        overflow-x: auto;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${sourceTitle}</h1>
+    <div class="meta">Generated: ${generatedAt} | Provider: ${provider}</div>
+    ${summaryHtml}
+  </body>
+</html>`;
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    throw new Error("Popup blocked. Allow popups to open summary tab.");
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
 function moveCaretToStartContentEditable(el) {
   try {
     const selection = window.getSelection();
@@ -561,7 +722,6 @@ async function onSummarizeClick() {
     }
 
     setStatus("Done.");
-    setOutput(summary.outputMarkdown);
     latestResult = {
       provider: selectedProvider,
       captionCount: extracted.captionCount,
@@ -570,6 +730,8 @@ async function onSummarizeClick() {
       sourceTitle: tab.title || "Panopto Lecture",
       generatedAt: Date.now()
     };
+    openRenderedSummaryTab(latestResult);
+    setOutput("Summary opened in a new tab.");
     updateActionButtons();
     await saveHistoryEntry(latestResult);
     await refreshHistory();
