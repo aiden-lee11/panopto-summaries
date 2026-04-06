@@ -1,4 +1,5 @@
 import {
+  HISTORY_STORAGE_KEY,
   PROMPT_STORAGE_KEYS,
   normalizeProvider,
   normalizePromptBehavior,
@@ -9,6 +10,7 @@ import {
 const summarizeBtn = document.getElementById("summarizeBtn");
 const copyLectureCaptionsBtn = document.getElementById("copyLectureCaptionsBtn");
 const settingsBtn = document.getElementById("settingsBtn");
+const clearHistoryBtn = document.getElementById("clearHistoryBtn");
 const statusEl = document.getElementById("status");
 const outputEl = document.getElementById("output");
 const providerEls = Array.from(document.querySelectorAll('input[name="provider"]'));
@@ -19,7 +21,6 @@ const customInstructionEl = document.getElementById("customInstruction");
 const historyListEl = document.getElementById("historyList");
 
 let latestResult = null;
-const HISTORY_KEY = "summaryHistory";
 const MAX_HISTORY = 5;
 
 function setStatus(message) {
@@ -152,6 +153,19 @@ function openRenderedSummaryTab(result) {
   const model = escapeHtml(result.model || "—");
   const captionCount = Number.isFinite(result.captionCount) ? result.captionCount : 0;
   const transcriptText = escapeHtml(result.transcriptText || "");
+  const captionsSectionHtml = transcriptText
+    ? `<details>
+      <summary>Captions (sanitized transcript)</summary>
+      <div class="meta">Lines: ${captionCount}</div>
+      <div class="toolbar">
+        <button id="copyCaptionsBtn" type="button">Copy captions</button>
+      </div>
+      <pre id="captions">${transcriptText}</pre>
+    </details>`
+    : `<details>
+      <summary>Captions (sanitized transcript)</summary>
+      <div class="meta">Transcript text was not retained in local history.</div>
+    </details>`;
   const payloadEncoded = escapeHtml(
     JSON.stringify({
       generatedAt: result.generatedAt,
@@ -229,14 +243,7 @@ function openRenderedSummaryTab(result) {
       <button type="button" id="exportPdfBtn">Export PDF</button>
     </div>
     ${summaryHtml}
-    <details>
-      <summary>Captions (sanitized transcript)</summary>
-      <div class="meta">Lines: ${captionCount}</div>
-      <div class="toolbar">
-        <button id="copyCaptionsBtn" type="button">Copy captions</button>
-      </div>
-      <pre id="captions">${transcriptText}</pre>
-    </details>
+    ${captionsSectionHtml}
     <pre id="summary-payload">${payloadEncoded}</pre>
     <script src="${summaryTabScriptUrl}"></script>
   </body>
@@ -256,11 +263,11 @@ function formatDate(ts) {
 }
 
 async function getHistory() {
-  const stored = await chrome.storage.local.get([HISTORY_KEY]);
-  if (!Array.isArray(stored[HISTORY_KEY])) {
+  const stored = await chrome.storage.local.get([HISTORY_STORAGE_KEY]);
+  if (!Array.isArray(stored[HISTORY_STORAGE_KEY])) {
     return [];
   }
-  return stored[HISTORY_KEY];
+  return stored[HISTORY_STORAGE_KEY];
 }
 
 async function saveHistoryEntry(result) {
@@ -271,14 +278,21 @@ async function saveHistoryEntry(result) {
     model: result.model,
     captionCount: result.captionCount,
     sourceTitle: result.sourceTitle,
-    summaryMarkdown: result.summaryMarkdown,
-    transcriptSnippet: (result.transcriptText || "").slice(0, 12000)
+    summaryMarkdown: result.summaryMarkdown
   };
 
   const history = await getHistory();
   const updated = [entry, ...history].slice(0, MAX_HISTORY);
-  await chrome.storage.local.set({ [HISTORY_KEY]: updated });
+  await chrome.storage.local.set({ [HISTORY_STORAGE_KEY]: updated });
   return updated;
+}
+
+async function clearHistory() {
+  await chrome.storage.local.remove(HISTORY_STORAGE_KEY);
+  latestResult = null;
+  setOutput("");
+  setStatus("Saved summary history cleared.");
+  renderHistory([]);
 }
 
 function renderHistory(history) {
@@ -300,7 +314,7 @@ function renderHistory(history) {
         provider: item.provider,
         model: item.model,
         captionCount: item.captionCount,
-        transcriptText: item.transcriptSnippet || "",
+        transcriptText: "",
         summaryMarkdown: item.summaryMarkdown,
         sourceTitle: item.sourceTitle,
         generatedAt: item.generatedAt
@@ -476,6 +490,12 @@ async function onCopyLectureCaptionsClick() {
 summarizeBtn.addEventListener("click", onSummarizeClick);
 copyLectureCaptionsBtn?.addEventListener("click", onCopyLectureCaptionsClick);
 settingsBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
+clearHistoryBtn?.addEventListener("click", () => {
+  clearHistory().catch((error) => {
+    setStatus("Error");
+    setOutput(error.message || String(error));
+  });
+});
 for (const input of providerEls) {
   input.addEventListener("change", savePreferredProvider);
 }

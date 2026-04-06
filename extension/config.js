@@ -1,2 +1,2 @@
 export const OPENAI_MODEL = "gpt-5-mini";
-export const GEMINI_MODEL = "gemini-2.5-pro";
+export const GEMINI_MODEL = "gemini-3-flash-preview";

@@ -19,6 +19,8 @@ export const SETTINGS_STORAGE_KEYS = [
   "geminiModel"
 ];
 
+export const HISTORY_STORAGE_KEY = "summaryHistory";
+
 export const PROMPT_PRESETS = {
   bullet_points: `Output only markdown bullet points.
 - No heading, no preamble, no closing note.

@@ -1,8 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Panopto Lecture Summarizer (Local)",
-  "version": "0.1.0",
-  "description": "Extracts Panopto captions and summarizes lectures with GPT-5 mini.",
+  "name": "Panopto Summarizer",
+  "short_name": "Panopto Summarizer",
+  "version": "1.0.0",
+  "description": "Extract Panopto captions and summarize lectures with your own OpenAI or Gemini API key.",
+  "minimum_chrome_version": "116",
   "permissions": [
     "activeTab",
     "storage",
@@ -17,9 +19,19 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Summarize lecture"
+    "default_title": "Summarize lecture",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
   },
   "options_page": "options.html",
   "content_scripts": [

@@ -1,4 +1,4 @@
-# Panopto Summarizer Extension (Local)
+# Panopto Summarizer
 
 ## 1) Clone
 
@@ -20,7 +20,7 @@ cd panopto
 
 ## 4) Set API keys
 
-1. In `chrome://extensions`, find **Panopto Lecture Summarizer (Local)**.
+1. In `chrome://extensions`, find **Panopto Summarizer**.
 2. Click **Details**.
 3. Click **Extension options**.
 4. Paste your key(s):

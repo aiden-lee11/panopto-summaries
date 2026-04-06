@@ -218,12 +218,12 @@ async function summarizeLecture(transcriptText, provider, promptConfig) {
 
   if (selectedProvider === "openai" && !settings.openaiApiKey) {
     throw new Error(
-      "Missing OpenAI API key. Open extension Settings and paste the key from your .env file."
+      "Missing OpenAI API key. Open extension Settings and add your OpenAI key."
     );
   }
   if (selectedProvider === "gemini" && !settings.geminiApiKey) {
     throw new Error(
-      "Missing Gemini API key. Open extension Settings and paste the Gemini key from your .env file."
+      "Missing Gemini API key. Open extension Settings and add your Gemini key."
     );
   }
 

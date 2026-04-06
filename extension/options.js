@@ -1,4 +1,5 @@
 import {
+  HISTORY_STORAGE_KEY,
   SETTINGS_STORAGE_KEYS,
   normalizePromptBehavior,
   normalizePromptPreset,
@@ -19,6 +20,8 @@ const openaiModelEl = document.getElementById("openaiModel");
 const geminiApiKeyEl = document.getElementById("geminiApiKey");
 const geminiModelEl = document.getElementById("geminiModel");
 const saveBtn = document.getElementById("saveBtn");
+const clearKeysBtn = document.getElementById("clearKeysBtn");
+const clearHistoryBtn = document.getElementById("clearHistoryBtn");
 const statusEl = document.getElementById("status");
 
 function setStatus(message) {
@@ -58,11 +61,6 @@ async function saveSettings() {
   const geminiApiKey = geminiApiKeyEl.value.trim();
   const geminiModel = geminiModelEl.value.trim() || currentSettings.geminiModel;
 
-  if (!openaiApiKey && !geminiApiKey) {
-    setStatus("Please provide at least one API key.");
-    return;
-  }
-
   await chrome.storage.local.set({
     preferredProvider,
     defaultPromptPreset,
@@ -74,12 +72,44 @@ async function saveSettings() {
     geminiModel
   });
 
-  setStatus("Saved.");
+  if (!openaiApiKey && !geminiApiKey) {
+    setStatus("Settings saved. Add an API key before running summaries.");
+    return;
+  }
+
+  setStatus("Settings saved.");
+}
+
+async function clearApiKeys() {
+  openaiApiKeyEl.value = "";
+  geminiApiKeyEl.value = "";
+  await chrome.storage.local.set({
+    openaiApiKey: "",
+    geminiApiKey: ""
+  });
+  setStatus("Stored API keys cleared from local extension storage.");
+}
+
+async function clearSavedHistory() {
+  await chrome.storage.local.remove(HISTORY_STORAGE_KEY);
+  setStatus("Saved summary history cleared.");
 }
 
 saveBtn.addEventListener("click", () => {
   saveSettings().catch((error) => {
     setStatus(error?.message || "Failed to save settings.");
+  });
+});
+
+clearKeysBtn?.addEventListener("click", () => {
+  clearApiKeys().catch((error) => {
+    setStatus(error?.message || "Failed to clear API keys.");
+  });
+});
+
+clearHistoryBtn?.addEventListener("click", () => {
+  clearSavedHistory().catch((error) => {
+    setStatus(error?.message || "Failed to clear summary history.");
   });
 });
 

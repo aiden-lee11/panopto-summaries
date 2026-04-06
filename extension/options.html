@@ -54,14 +54,35 @@
         padding: 9px 12px;
         cursor: pointer;
       }
+      button.secondary {
+        background: transparent;
+        color: inherit;
+      }
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
       #status {
         margin-top: 12px;
       }
-      .warn {
+      .card {
         margin-top: 14px;
-        padding: 10px;
-        border: 1px solid #d97706;
+        padding: 12px;
+        border: 1px solid #7774;
         border-radius: 8px;
+      }
+      .card h2 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+      .card p,
+      .card ul {
+        margin: 0;
+      }
+      .card ul {
+        padding-left: 20px;
       }
       code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -70,7 +91,7 @@
   </head>
   <body>
     <h1>Panopto Summarizer Settings</h1>
-    <p>Paste API keys from your local <code>.env</code> file.</p>
+    <p>Bring your own OpenAI or Gemini API key. Keys are stored only in this browser profile via <code>chrome.storage.local</code>.</p>
 
     <label for="preferredProvider">Default Provider</label>
     <select id="preferredProvider">
@@ -113,13 +134,28 @@
     <input id="geminiApiKey" type="password" placeholder="AIza..." autocomplete="off" />
 
     <label for="geminiModel">Gemini Model</label>
-    <input id="geminiModel" type="text" value="gemini-2.5-pro" />
+    <input id="geminiModel" type="text" value="gemini-3-flash-preview" />
 
-    <button id="saveBtn">Save Settings</button>
+    <div class="button-row">
+      <button id="saveBtn">Save Settings</button>
+      <button id="clearKeysBtn" class="secondary" type="button">Clear API Keys</button>
+      <button id="clearHistoryBtn" class="secondary" type="button">Clear Saved Summaries</button>
+    </div>
     <div id="status"></div>
 
-    <div class="warn">
-      This local prototype stores API keys in <code>chrome.storage.local</code>. Do not publish this version with direct key usage.
+    <div class="card">
+      <h2>How data is used</h2>
+      <ul>
+        <li>Captions are read from the active Panopto lecture page when you click summarize or copy captions.</li>
+        <li>Your selected transcript text is sent directly to the AI provider you choose.</li>
+        <li>API keys stay in local extension storage on this device unless you remove them.</li>
+        <li>Saved summary history stays local and can be cleared at any time from this page.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Before publishing</h2>
+      <p>Link your privacy policy from the Chrome Web Store listing and describe the BYOK data flow clearly in the listing disclosure form.</p>
     </div>
 
     <script type="module" src="options.js"></script>
