@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 
 const summarizeBtn = document.getElementById("summarizeBtn");
+const copyLectureCaptionsBtn = document.getElementById("copyLectureCaptionsBtn");
 const settingsBtn = document.getElementById("settingsBtn");
 const statusEl = document.getElementById("status");
 const outputEl = document.getElementById("output");
@@ -254,6 +255,8 @@ function openRenderedSummaryTab(result) {
   const sourceTitle = escapeHtml(result.sourceTitle || "Panopto Lecture");
   const generatedAt = escapeHtml(new Date(result.generatedAt).toLocaleString());
   const provider = escapeHtml(result.provider || "unknown");
+  const captionCount = Number.isFinite(result.captionCount) ? result.captionCount : 0;
+  const transcriptText = escapeHtml(result.transcriptText || "");
 
   const html = `<!doctype html>
 <html lang="en">
@@ -275,6 +278,27 @@ function openRenderedSummaryTab(result) {
         color: #444;
         font-size: 13px;
       }
+      details {
+        margin-top: 18px;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin: 10px 0;
+      }
+      button {
+        border: 1px solid #ddd;
+        background: #fff;
+        color: #111;
+        border-radius: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+      }
       pre {
         background: #f6f6f6;
         border: 1px solid #ddd;
@@ -291,6 +315,32 @@ function openRenderedSummaryTab(result) {
     <h1>${sourceTitle}</h1>
     <div class="meta">Generated: ${generatedAt} | Provider: ${provider}</div>
     ${summaryHtml}
+    <details open>
+      <summary>Captions (sanitized transcript)</summary>
+      <div class="meta">Lines: ${captionCount}</div>
+      <div class="toolbar">
+        <button id="copyCaptionsBtn" type="button">Copy captions</button>
+      </div>
+      <pre id="captions">${transcriptText}</pre>
+    </details>
+    <script>
+      (function () {
+        const btn = document.getElementById("copyCaptionsBtn");
+        const captions = document.getElementById("captions");
+        if (!btn || !captions) return;
+        btn.addEventListener("click", async () => {
+          const text = captions.textContent || "";
+          try {
+            await navigator.clipboard.writeText(text);
+            const prev = btn.textContent;
+            btn.textContent = "Copied!";
+            setTimeout(() => (btn.textContent = prev), 1200);
+          } catch (error) {
+            alert(error?.message || "Failed to copy captions.");
+          }
+        });
+      })();
+    </script>
   </body>
 </html>`;
 
@@ -623,21 +673,67 @@ async function getActiveTab() {
   return tabs[0];
 }
 
+async function getActivePanoptoTab() {
+  const tab = await getActiveTab();
+  if (!tab || !tab.id || !tab.url) {
+    throw new Error("Could not read active tab.");
+  }
+  if (!tab.url.includes("panopto.com")) {
+    throw new Error("Open a Panopto lecture tab first.");
+  }
+  return tab;
+}
+
 async function extractTranscript(tabId) {
-  return chrome.tabs.sendMessage(tabId, { type: "EXTRACT_TRANSCRIPT" });
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type: "EXTRACT_TRANSCRIPT" });
+  } catch (error) {
+    const message = error?.message || String(error || "");
+    if (!message.includes("Receiving end does not exist")) {
+      throw error;
+    }
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content.js"]
+    });
+
+    return chrome.tabs.sendMessage(tabId, { type: "EXTRACT_TRANSCRIPT" });
+  }
+}
+
+async function extractTranscriptFromActiveLecture() {
+  setStatus("Checking active tab...");
+  const tab = await getActivePanoptoTab();
+  setStatus("Extracting captions...");
+  const extracted = await extractTranscript(tab.id);
+  if (!extracted?.ok) {
+    throw new Error(extracted?.error || "Caption extraction failed.");
+  }
+  return { tab, extracted };
 }
 
 async function summarizeTranscript(transcriptPayload) {
   const provider = getSelectedProvider();
   const promptConfig = getPromptConfigFromPopup();
-  return chrome.runtime.sendMessage({
-    type: "SUMMARIZE_TRANSCRIPT",
-    payload: transcriptPayload,
-    provider,
-    promptPreset: promptConfig.promptPreset,
-    promptBehavior: promptConfig.promptBehavior,
-    customInstruction: promptConfig.customInstruction
-  });
+  try {
+    return await chrome.runtime.sendMessage({
+      type: "SUMMARIZE_TRANSCRIPT",
+      payload: transcriptPayload,
+      provider,
+      promptPreset: promptConfig.promptPreset,
+      promptBehavior: promptConfig.promptBehavior,
+      customInstruction: promptConfig.customInstruction
+    });
+  } catch (error) {
+    const message = error?.message || String(error || "");
+    if (!message.includes("Receiving end does not exist")) {
+      throw error;
+    }
+    throw new Error(
+      "Extension background is not available. Reload the extension in chrome://extensions (and refresh the Panopto tab), then try again."
+    );
+  }
 }
 
 function getPromptConfigFromPopup() {
@@ -695,22 +791,8 @@ function savePreferredProvider() {
 
 async function onSummarizeClick() {
   try {
-    setStatus("Checking active tab...");
     setOutput("Working...");
-
-    const tab = await getActiveTab();
-    if (!tab || !tab.id || !tab.url) {
-      throw new Error("Could not read active tab.");
-    }
-    if (!tab.url.includes("panopto.com")) {
-      throw new Error("Open a Panopto lecture tab first.");
-    }
-
-    setStatus("Extracting captions...");
-    const extracted = await extractTranscript(tab.id);
-    if (!extracted?.ok) {
-      throw new Error(extracted?.error || "Caption extraction failed.");
-    }
+    const { tab, extracted } = await extractTranscriptFromActiveLecture();
 
     const selectedProvider = getSelectedProvider();
     setStatus(
@@ -735,6 +817,19 @@ async function onSummarizeClick() {
     updateActionButtons();
     await saveHistoryEntry(latestResult);
     await refreshHistory();
+  } catch (error) {
+    setStatus("Error");
+    setOutput(error.message || String(error));
+  }
+}
+
+async function onCopyLectureCaptionsClick() {
+  try {
+    setOutput("Working...");
+    const { extracted } = await extractTranscriptFromActiveLecture();
+    await navigator.clipboard.writeText(extracted.transcriptText || "");
+    setStatus(`Copied ${extracted.captionCount} caption lines.`);
+    setOutput("Captions copied to clipboard.");
   } catch (error) {
     setStatus("Error");
     setOutput(error.message || String(error));
@@ -941,6 +1036,7 @@ async function forkWithContext() {
 }
 
 summarizeBtn.addEventListener("click", onSummarizeClick);
+copyLectureCaptionsBtn?.addEventListener("click", onCopyLectureCaptionsClick);
 settingsBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
 exportBtn.addEventListener("click", exportSummaryMarkdown);
 exportPdfBtn.addEventListener("click", exportSummaryPdf);

@@ -112,8 +112,8 @@
     <label for="geminiApiKey">Gemini API Key</label>
     <input id="geminiApiKey" type="password" placeholder="AIza..." autocomplete="off" />
 
-    <label for="geminiModel">Gemini Model (free-tier friendly)</label>
-    <input id="geminiModel" type="text" value="gemini-2.0-flash" />
+    <label for="geminiModel">Gemini Model</label>
+    <input id="geminiModel" type="text" value="gemini-2.5-pro" />
 
     <button id="saveBtn">Save Settings</button>
     <div id="status"></div>
@@ -122,6 +122,6 @@
       This local prototype stores API keys in <code>chrome.storage.local</code>. Do not publish this version with direct key usage.
     </div>
 
-    <script src="options.js"></script>
+    <script type="module" src="options.js"></script>
   </body>
   </html>

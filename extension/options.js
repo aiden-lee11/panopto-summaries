@@ -1,3 +1,5 @@
+import { GEMINI_MODEL, OPENAI_MODEL } from "./config.js";
+
 const preferredProviderEl = document.getElementById("preferredProvider");
 const defaultPromptPresetEl = document.getElementById("defaultPromptPreset");
 const defaultPromptBehaviorEl = document.getElementById("defaultPromptBehavior");
@@ -44,9 +46,9 @@ async function loadSettings() {
   defaultCustomInstructionEl.value = settings.defaultCustomInstruction || "";
   updateCustomInstructionVisibility();
   openaiApiKeyEl.value = settings.openaiApiKey || "";
-  openaiModelEl.value = settings.openaiModel || "gpt-5-mini";
+  openaiModelEl.value = settings.openaiModel || OPENAI_MODEL;
   geminiApiKeyEl.value = settings.geminiApiKey || "";
-  geminiModelEl.value = settings.geminiModel || "gemini-2.0-flash";
+  geminiModelEl.value = settings.geminiModel || GEMINI_MODEL;
 }
 
 async function saveSettings() {
@@ -59,9 +61,9 @@ async function saveSettings() {
       : "custom_only";
   const defaultCustomInstruction = defaultCustomInstructionEl.value.trim();
   const openaiApiKey = openaiApiKeyEl.value.trim();
-  const openaiModel = openaiModelEl.value.trim() || "gpt-5-mini";
+  const openaiModel = openaiModelEl.value.trim() || OPENAI_MODEL;
   const geminiApiKey = geminiApiKeyEl.value.trim();
-  const geminiModel = geminiModelEl.value.trim() || "gemini-2.0-flash";
+  const geminiModel = geminiModelEl.value.trim() || GEMINI_MODEL;
 
   if (!openaiApiKey && !geminiApiKey) {
     setStatus("Please provide at least one API key.");

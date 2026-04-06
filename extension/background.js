@@ -1,5 +1,6 @@
-const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
-const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
+import { GEMINI_MODEL, OPENAI_MODEL } from "./config.js";
+import { GoogleGenerativeAI } from "./vendor/google-generative-ai/index.mjs";
+
 const DEFAULT_PROMPT_PRESET = "bullet_points";
 const DEFAULT_PROMPT_BEHAVIOR = "custom_only";
 
@@ -181,9 +182,9 @@ async function getSettings() {
     defaultPromptBehavior: normalizePromptBehavior(stored.defaultPromptBehavior),
     defaultCustomInstruction: stored.defaultCustomInstruction || "",
     openaiApiKey: stored.openaiApiKey || "",
-    openaiModel: stored.openaiModel || DEFAULT_OPENAI_MODEL,
+    openaiModel: stored.openaiModel || OPENAI_MODEL,
     geminiApiKey: stored.geminiApiKey || "",
-    geminiModel: stored.geminiModel || DEFAULT_GEMINI_MODEL
+    geminiModel: stored.geminiModel || GEMINI_MODEL
   };
 }
 
@@ -236,36 +237,24 @@ async function summarizeWithGemini(
   apiKey,
   signal
 ) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const generativeModel = genAI.getGenerativeModel({ model });
+  const result = await generativeModel.generateContent(
     {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `${promptInstructions}\n\nTranscript:\n${transcriptText}`
-              }
-            ]
-          }
-        ]
-      }),
-      signal
-    }
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: `${promptInstructions}\n\nTranscript:\n${transcriptText}`
+            }
+          ]
+        }
+      ]
+    },
+    { signal }
   );
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Gemini request failed (${response.status}): ${errText}`);
-  }
-
-  const json = await response.json();
-  const outputMarkdown = readGeminiOutputText(json);
+  const outputMarkdown = result?.response?.text?.() || "";
   if (!outputMarkdown) {
     throw new Error("No summary text returned from Gemini.");
   }

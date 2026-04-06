@@ -1,5 +1,9 @@
 {
+  "scripts": {
+    "sync:gemini-sdk": "mkdir -p extension/vendor/google-generative-ai && cp node_modules/@google/generative-ai/dist/index.mjs extension/vendor/google-generative-ai/index.mjs && cp node_modules/@google/generative-ai/LICENSE extension/vendor/google-generative-ai/LICENSE"
+  },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "jspdf": "^4.1.0"
   }
 }
