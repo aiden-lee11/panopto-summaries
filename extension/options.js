@@ -1,4 +1,11 @@
-import { GEMINI_MODEL, OPENAI_MODEL } from "./config.js";
+import {
+  SETTINGS_STORAGE_KEYS,
+  normalizePromptBehavior,
+  normalizePromptPreset,
+  normalizeProvider,
+  normalizeStoredSettings,
+  shouldHideCustomInstruction
+} from "./shared.js";
 
 const preferredProviderEl = document.getElementById("preferredProvider");
 const defaultPromptPresetEl = document.getElementById("defaultPromptPreset");
@@ -19,51 +26,37 @@ function setStatus(message) {
 }
 
 function updateCustomInstructionVisibility() {
-  const hide = defaultPromptBehaviorEl.value === "no_custom_prompt";
-  defaultCustomInstructionGroupEl.style.display = hide ? "none" : "";
+  defaultCustomInstructionGroupEl.style.display = shouldHideCustomInstruction(
+    defaultPromptBehaviorEl.value
+  )
+    ? "none"
+    : "";
 }
 
 async function loadSettings() {
-  const settings = await chrome.storage.local.get([
-    "preferredProvider",
-    "defaultPromptPreset",
-    "defaultPromptBehavior",
-    "defaultCustomInstruction",
-    "openaiApiKey",
-    "openaiModel",
-    "geminiApiKey",
-    "geminiModel"
-  ]);
-  const preferredProvider =
-    settings.preferredProvider === "gemini" ? "gemini" : "openai";
-  preferredProviderEl.value = preferredProvider;
-  defaultPromptPresetEl.value = settings.defaultPromptPreset || "bullet_points";
-  defaultPromptBehaviorEl.value =
-    settings.defaultPromptBehavior === "append_guidance" ||
-    settings.defaultPromptBehavior === "no_custom_prompt"
-      ? settings.defaultPromptBehavior
-      : "custom_only";
+  const stored = await chrome.storage.local.get(SETTINGS_STORAGE_KEYS);
+  const settings = normalizeStoredSettings(stored);
+  preferredProviderEl.value = settings.preferredProvider;
+  defaultPromptPresetEl.value = settings.defaultPromptPreset;
+  defaultPromptBehaviorEl.value = settings.defaultPromptBehavior;
   defaultCustomInstructionEl.value = settings.defaultCustomInstruction || "";
   updateCustomInstructionVisibility();
   openaiApiKeyEl.value = settings.openaiApiKey || "";
-  openaiModelEl.value = settings.openaiModel || OPENAI_MODEL;
+  openaiModelEl.value = settings.openaiModel;
   geminiApiKeyEl.value = settings.geminiApiKey || "";
-  geminiModelEl.value = settings.geminiModel || GEMINI_MODEL;
+  geminiModelEl.value = settings.geminiModel;
 }
 
 async function saveSettings() {
-  const preferredProvider = preferredProviderEl.value === "gemini" ? "gemini" : "openai";
-  const defaultPromptPreset = defaultPromptPresetEl.value || "bullet_points";
-  const defaultPromptBehavior =
-    defaultPromptBehaviorEl.value === "append_guidance" ||
-    defaultPromptBehaviorEl.value === "no_custom_prompt"
-      ? defaultPromptBehaviorEl.value
-      : "custom_only";
+  const currentSettings = normalizeStoredSettings();
+  const preferredProvider = normalizeProvider(preferredProviderEl.value);
+  const defaultPromptPreset = normalizePromptPreset(defaultPromptPresetEl.value);
+  const defaultPromptBehavior = normalizePromptBehavior(defaultPromptBehaviorEl.value);
   const defaultCustomInstruction = defaultCustomInstructionEl.value.trim();
   const openaiApiKey = openaiApiKeyEl.value.trim();
-  const openaiModel = openaiModelEl.value.trim() || OPENAI_MODEL;
+  const openaiModel = openaiModelEl.value.trim() || currentSettings.openaiModel;
   const geminiApiKey = geminiApiKeyEl.value.trim();
-  const geminiModel = geminiModelEl.value.trim() || GEMINI_MODEL;
+  const geminiModel = geminiModelEl.value.trim() || currentSettings.geminiModel;
 
   if (!openaiApiKey && !geminiApiKey) {
     setStatus("Please provide at least one API key.");

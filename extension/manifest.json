@@ -11,9 +11,7 @@
   "host_permissions": [
     "*://*.panopto.com/*",
     "https://api.openai.com/*",
-    "https://generativelanguage.googleapis.com/*",
-    "https://chatgpt.com/*",
-    "https://chat.openai.com/*"
+    "https://generativelanguage.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js",

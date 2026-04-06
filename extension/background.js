@@ -1,8 +1,10 @@
-import { GEMINI_MODEL, OPENAI_MODEL } from "./config.js";
-import { GoogleGenerativeAI } from "./vendor/google-generative-ai/index.mjs";
-
-const DEFAULT_PROMPT_PRESET = "bullet_points";
-const DEFAULT_PROMPT_BEHAVIOR = "custom_only";
+import {
+  PROMPT_PRESETS,
+  SETTINGS_STORAGE_KEYS,
+  normalizePromptBehavior,
+  normalizePromptPreset,
+  normalizeStoredSettings
+} from "./shared.js";
 
 const BASE_QUALITY_RULES = [
   "Use only transcript content; do not invent facts.",
@@ -11,59 +13,6 @@ const BASE_QUALITY_RULES = [
   "Preserve important terminology, theories, names, definitions, and arguments.",
   "If information is unclear, say so briefly instead of guessing."
 ];
-
-const PROMPT_PRESETS = {
-  bullet_points: `Output only markdown bullet points.
-- No heading, no preamble, no closing note.
-- Return 12-20 bullets, most important points first.`,
-  summary: `Output a concise markdown summary:
-- 1 short paragraph overview
-- 8-12 bullets for main points
-- 1 short closing line with key takeaway`,
-  quiz_creator: `Create a quiz from this lecture in markdown:
-## Multiple Choice
-- 8 questions, each with 4 options
-- Mark the correct option under each question
-
-## Short Answer
-- 5 questions
-- Include a brief answer key`,
-  study_guide: `Output a markdown study guide with these sections:
-## Core Concepts
-## Key Mechanisms
-## Important Examples
-## Likely Exam Questions
-Keep each section concise and useful for review.`,
-  detailed_notes: `Output detailed markdown notes:
-## Main Themes
-## Topic-by-Topic Notes
-## Evidence and Examples
-## Open Questions
-Keep structure clear and complete without fluff.`
-};
-
-const PROMPT_PRESET_ALIASES = {
-  bullets_only: "bullet_points",
-  executive_summary: "summary",
-  exam_prep: "quiz_creator"
-};
-
-function normalizePromptPreset(value) {
-  const resolved = PROMPT_PRESET_ALIASES[value] || value;
-  if (resolved === "custom_instruction_only") {
-    return resolved;
-  }
-  return Object.prototype.hasOwnProperty.call(PROMPT_PRESETS, resolved)
-    ? resolved
-    : DEFAULT_PROMPT_PRESET;
-}
-
-function normalizePromptBehavior(value) {
-  if (value === "append_guidance" || value === "no_custom_prompt") {
-    return value;
-  }
-  return DEFAULT_PROMPT_BEHAVIOR;
-}
 
 function buildPromptInstructions({
   promptPreset,
@@ -166,26 +115,8 @@ function readGeminiOutputText(responseJson) {
 }
 
 async function getSettings() {
-  const stored = await chrome.storage.local.get([
-    "preferredProvider",
-    "defaultPromptPreset",
-    "defaultPromptBehavior",
-    "defaultCustomInstruction",
-    "openaiApiKey",
-    "openaiModel",
-    "geminiApiKey",
-    "geminiModel"
-  ]);
-  return {
-    preferredProvider: stored.preferredProvider || "openai",
-    defaultPromptPreset: normalizePromptPreset(stored.defaultPromptPreset),
-    defaultPromptBehavior: normalizePromptBehavior(stored.defaultPromptBehavior),
-    defaultCustomInstruction: stored.defaultCustomInstruction || "",
-    openaiApiKey: stored.openaiApiKey || "",
-    openaiModel: stored.openaiModel || OPENAI_MODEL,
-    geminiApiKey: stored.geminiApiKey || "",
-    geminiModel: stored.geminiModel || GEMINI_MODEL
-  };
+  const stored = await chrome.storage.local.get(SETTINGS_STORAGE_KEYS);
+  return normalizeStoredSettings(stored);
 }
 
 async function summarizeWithOpenAI(
@@ -237,24 +168,35 @@ async function summarizeWithGemini(
   apiKey,
   signal
 ) {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const generativeModel = genAI.getGenerativeModel({ model });
-  const result = await generativeModel.generateContent(
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
     {
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: `${promptInstructions}\n\nTranscript:\n${transcriptText}`
-            }
-          ]
-        }
-      ]
-    },
-    { signal }
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `${promptInstructions}\n\nTranscript:\n${transcriptText}`
+              }
+            ]
+          }
+        ]
+      }),
+      signal
+    }
   );
-  const outputMarkdown = result?.response?.text?.() || "";
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini request failed (${response.status}): ${errText}`);
+  }
+
+  const json = await response.json();
+  const outputMarkdown = readGeminiOutputText(json);
   if (!outputMarkdown) {
     throw new Error("No summary text returned from Gemini.");
   }
@@ -285,27 +227,32 @@ async function summarizeLecture(transcriptText, provider, promptConfig) {
     );
   }
 
+  const modelUsed =
+    selectedProvider === "gemini" ? settings.geminiModel : settings.openaiModel;
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);
 
   try {
+    let outputMarkdown;
     if (selectedProvider === "gemini") {
-      return await summarizeWithGemini(
+      outputMarkdown = await summarizeWithGemini(
         transcriptText,
         promptInstructions,
         settings.geminiModel,
         settings.geminiApiKey,
         controller.signal
       );
+    } else {
+      outputMarkdown = await summarizeWithOpenAI(
+        transcriptText,
+        promptInstructions,
+        settings.openaiModel,
+        settings.openaiApiKey,
+        controller.signal
+      );
     }
-
-    return await summarizeWithOpenAI(
-      transcriptText,
-      promptInstructions,
-      settings.openaiModel,
-      settings.openaiApiKey,
-      controller.signal
-    );
+    return { outputMarkdown, model: modelUsed };
   } finally {
     clearTimeout(timeout);
   }
@@ -327,7 +274,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     promptBehavior: message?.promptBehavior,
     customInstruction: message?.customInstruction
   })
-    .then((outputMarkdown) => sendResponse({ ok: true, outputMarkdown }))
+    .then(({ outputMarkdown, model }) =>
+      sendResponse({ ok: true, outputMarkdown, model })
+    )
     .catch((error) => {
       sendResponse({
         ok: false,
