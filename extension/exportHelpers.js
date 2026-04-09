@@ -8,6 +8,14 @@ export function sanitizeFilename(input) {
     .toLowerCase();
 }
 
+export function sanitizeReadableFilename(input) {
+  return (input || "Panopto Lecture Summary")
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80) || "Panopto Lecture Summary";
+}
+
 export function deriveSummaryTopicSlug(summaryMarkdown) {
   const lines = (summaryMarkdown || "")
     .split("\n")
@@ -32,34 +40,11 @@ export function deriveSummaryTopicSlug(summaryMarkdown) {
 }
 
 export function buildResultFilename(result, extension) {
-  const date = new Date(result.generatedAt).toISOString().slice(0, 10);
-  const topic = deriveSummaryTopicSlug(result.summaryMarkdown);
-  return `${date}-${topic}.${extension}`;
+  return `${sanitizeReadableFilename(result.sourceTitle || "")}.${extension}`;
 }
 
 export function buildContextMarkdown(result) {
-  const metaLines = [
-    `- Generated at: ${new Date(result.generatedAt).toISOString()}`,
-    `- Source provider: ${result.provider}`,
-    `- Model: ${result.model || "—"}`,
-    `- Caption lines: ${result.captionCount}`
-  ];
-
-  return [
-    "# Panopto Lecture Summary Context",
-    "",
-    "## Metadata",
-    ...metaLines,
-    "",
-    "## Summary",
-    result.summaryMarkdown || "(empty)",
-    "",
-    "## Sanitized Transcript",
-    "```text",
-    result.transcriptText || "",
-    "```",
-    ""
-  ].join("\n");
+  return (result.summaryMarkdown || "(empty)").trim();
 }
 
 export function normalizeInlineMarkdownToText(text) {

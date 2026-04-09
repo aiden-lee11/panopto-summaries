@@ -259,30 +259,28 @@ async function summarizeLecture(transcriptText, provider, promptConfig) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== "SUMMARIZE_TRANSCRIPT") {
-    return;
-  }
+  if (message?.type === "SUMMARIZE_TRANSCRIPT") {
+    const transcriptText = message?.payload?.transcriptText || "";
+    if (!transcriptText.trim()) {
+      sendResponse({ ok: false, error: "No transcript text was provided." });
+      return;
+    }
 
-  const transcriptText = message?.payload?.transcriptText || "";
-  if (!transcriptText.trim()) {
-    sendResponse({ ok: false, error: "No transcript text was provided." });
-    return;
-  }
-
-  summarizeLecture(transcriptText, message?.provider, {
-    promptPreset: message?.promptPreset,
-    promptBehavior: message?.promptBehavior,
-    customInstruction: message?.customInstruction
-  })
-    .then(({ outputMarkdown, model }) =>
-      sendResponse({ ok: true, outputMarkdown, model })
-    )
-    .catch((error) => {
-      sendResponse({
-        ok: false,
-        error: error?.message || "Unexpected summarization error."
+    summarizeLecture(transcriptText, message?.provider, {
+      promptPreset: message?.promptPreset,
+      promptBehavior: message?.promptBehavior,
+      customInstruction: message?.customInstruction
+    })
+      .then(({ outputMarkdown, model }) =>
+        sendResponse({ ok: true, outputMarkdown, model })
+      )
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: error?.message || "Unexpected summarization error."
+        });
       });
-    });
 
-  return true;
+    return true;
+  }
 });

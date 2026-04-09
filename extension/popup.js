@@ -177,7 +177,7 @@ function openRenderedSummaryTab(result) {
       transcriptText: result.transcriptText || ""
     })
   );
-  const summaryTabScriptUrl = chrome.runtime.getURL("summary-tab.bundle.js");
+  const summaryTabScriptUrl = chrome.runtime.getURL("summary-tab.js");
 
   const html = `<!doctype html>
 <html lang="en">
@@ -208,9 +208,25 @@ function openRenderedSummaryTab(result) {
       }
       .toolbar {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
         align-items: center;
         margin: 10px 0;
+      }
+      .toolbar-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .toolbar-separator {
+        width: 1px;
+        align-self: stretch;
+        background: #ddd;
+      }
+      .toolbar-note {
+        color: #444;
+        font-size: 13px;
       }
       button {
         border: 1px solid #ddd;
@@ -239,13 +255,21 @@ function openRenderedSummaryTab(result) {
     <h1>${sourceTitle}</h1>
     <div class="meta">Generated: ${generatedAt} | Provider: ${provider} | Model: ${model}</div>
     <div class="toolbar">
-      <button type="button" id="exportMdBtn">Export .md</button>
-      <button type="button" id="exportPdfBtn">Export PDF</button>
+      <div class="toolbar-group">
+        <button type="button" id="exportMdBtn">Export .md</button>
+        <button type="button" id="exportObsidianBtn">Export to Obsidian</button>
+      </div>
+      <div class="toolbar-separator" aria-hidden="true"></div>
+      <div class="toolbar-group">
+        <button type="button" id="connectObsidianBtn">Connect Obsidian Vault</button>
+        <span class="toolbar-note" id="obsidianVaultStatus">No vault connected.</span>
+        <button type="button" id="changeObsidianVaultBtn" hidden>Change</button>
+      </div>
     </div>
     ${summaryHtml}
     ${captionsSectionHtml}
     <pre id="summary-payload">${payloadEncoded}</pre>
-    <script src="${summaryTabScriptUrl}"></script>
+    <script type="module" src="${summaryTabScriptUrl}"></script>
   </body>
 </html>`;
 
