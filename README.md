@@ -38,7 +38,25 @@ cd panopto
 ## 6) Export / fork
 
 - Click **Export .md** to download a markdown file.
-- Click **Fork to ChatGPT** to open ChatGPT and inject context.
+- Click **Export to Obsidian** to send the summary into Obsidian via `obsidian://`.
+
+### Connecting to Obsidian
+
+Obsidian export uses a two-step connection flow:
+
+1. First select the actual vault root folder. This is used to capture the real Obsidian vault name.
+2. Then select an optional destination folder inside that vault. This is stored as a vault-relative subfolder path.
+
+Why this is required:
+
+- Obsidian URIs expect `vault` to be the real vault name, not an arbitrary folder inside the vault.
+- The destination folder must be passed separately as part of the note path inside the vault.
+- If you pick only a subfolder as though it were the vault, Obsidian will usually fail because that folder is not itself a registered vault.
+
+In practice, the export is built like this:
+
+- `vault` = your selected vault root name
+- `file` = `optional/subfolder/Lecture Title.md`
 
 ## 7) Reload after code changes
 
