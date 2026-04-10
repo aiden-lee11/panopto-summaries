@@ -1,5 +1,7 @@
 # Panopto Summarizer
 
+"I will always choose a lazy person to do a difficult job. Because, he will find an easy way to do it." - Bill Gates
+
 ## 1) Clone
 
 ```bash
