@@ -1,7 +1,36 @@
-import {
-  buildContextMarkdown,
-  buildResultFilename
-} from "./exportHelpers.js";
+import { buildExportMarkdown, buildResultFilename } from "./exportHelpers.js";
+import { normalizeStoredSettings } from "./shared.js";
+
+function readExportOptionsFromDocument() {
+  const el = document.getElementById("export-settings-payload");
+  const fallback = () => {
+    const s = normalizeStoredSettings({});
+    return {
+      obsidianExportFrontmatter: s.obsidianExportFrontmatter,
+      obsidianExportTags: s.obsidianExportTags,
+      obsidianExportMetaInFrontmatter: s.obsidianExportMetaInFrontmatter
+    };
+  };
+  if (!el) {
+    return fallback();
+  }
+  try {
+    const parsed = JSON.parse(el.textContent.trim());
+    const s = normalizeStoredSettings({});
+    return {
+      obsidianExportFrontmatter: Boolean(parsed.obsidianExportFrontmatter),
+      obsidianExportTags:
+        typeof parsed.obsidianExportTags === "string"
+          ? parsed.obsidianExportTags
+          : s.obsidianExportTags,
+      obsidianExportMetaInFrontmatter: Boolean(
+        parsed.obsidianExportMetaInFrontmatter
+      )
+    };
+  } catch {
+    return fallback();
+  }
+}
 
 const OBSIDIAN_VAULT_STORAGE_KEY = "obsidian_vault_name";
 const OBSIDIAN_FOLDER_PATH_STORAGE_KEY = "obsidian_folder_path";
@@ -145,7 +174,8 @@ function wireObsidianVaultControls() {
 function wireExports(result) {
   const exportMdBtn = document.getElementById("exportMdBtn");
   const exportObsidianBtn = document.getElementById("exportObsidianBtn");
-  const context = buildContextMarkdown(result);
+  const exportOpts = readExportOptionsFromDocument();
+  const context = buildExportMarkdown(result, exportOpts);
   const filename = buildResultFilename(result, "md");
 
   exportMdBtn?.addEventListener("click", () => {

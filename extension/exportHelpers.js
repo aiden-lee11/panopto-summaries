@@ -47,6 +47,99 @@ export function buildContextMarkdown(result) {
   return (result.summaryMarkdown || "(empty)").trim();
 }
 
+export function parseObsidianExportTagLines(tagsText) {
+  return String(tagsText || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function yamlDoubleQuotedString(value) {
+  const escaped = String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n");
+  return `"${escaped}"`;
+}
+
+function yamlScalarNeedsQuotes(s) {
+  if (!s.length) return true;
+  if (/^[\d.+-]+$/.test(s)) return true;
+  if (/^[#&*!?|>{%@`]/.test(s)) return true;
+  if (/[:\#{}\[\],&*?]|\n|^\s|\s$/.test(s)) return true;
+  if (s === "-" || s.startsWith("- ")) return true;
+  return false;
+}
+
+function toYamlScalar(s) {
+  return yamlScalarNeedsQuotes(s) ? yamlDoubleQuotedString(s) : s;
+}
+
+function formatYamlFrontmatterBlock(bodyLines) {
+  if (!bodyLines.length) return "";
+  return `---\n${bodyLines.join("\n")}\n---\n\n`;
+}
+
+export function buildObsidianFrontmatterYaml(result, options) {
+  const { obsidianExportTags = "", obsidianExportMetaInFrontmatter = false } =
+    options || {};
+
+  const tagList = parseObsidianExportTagLines(obsidianExportTags);
+  const bodyLines = [];
+
+  if (tagList.length) {
+    bodyLines.push("tags:");
+    for (const tag of tagList) {
+      bodyLines.push(`  - ${toYamlScalar(tag)}`);
+    }
+  }
+
+  if (obsidianExportMetaInFrontmatter && result) {
+    if (result.generatedAt != null) {
+      const generatedDate = new Date(result.generatedAt);
+      if (!Number.isNaN(generatedDate.getTime())) {
+        bodyLines.push(
+          `generated: ${toYamlScalar(generatedDate.toISOString())}`
+        );
+      }
+    }
+    const provider = String(result.provider || "").trim();
+    if (provider) {
+      bodyLines.push(`provider: ${toYamlScalar(provider)}`);
+    }
+    const model = String(result.model || "").trim();
+    if (model && model !== "—") {
+      bodyLines.push(`model: ${toYamlScalar(model)}`);
+    }
+    const title = String(result.sourceTitle || "").trim();
+    if (title) {
+      bodyLines.push(`lecture_title: ${toYamlScalar(title)}`);
+    }
+  }
+
+  return formatYamlFrontmatterBlock(bodyLines);
+}
+
+export function buildExportMarkdown(result, exportOptions) {
+  const body = buildContextMarkdown(result);
+  const {
+    obsidianExportFrontmatter = false,
+    obsidianExportTags = "",
+    obsidianExportMetaInFrontmatter = false
+  } = exportOptions || {};
+
+  if (!obsidianExportFrontmatter) {
+    return body;
+  }
+
+  const fm = buildObsidianFrontmatterYaml(result, {
+    obsidianExportTags,
+    obsidianExportMetaInFrontmatter
+  });
+
+  return fm ? `${fm}${body}` : body;
+}
+
 export function normalizeInlineMarkdownToText(text) {
   return String(text)
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")

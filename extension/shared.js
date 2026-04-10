@@ -11,12 +11,17 @@ export const PROMPT_STORAGE_KEYS = [
   "defaultCustomInstruction"
 ];
 
+export const DEFAULT_OBSIDIAN_EXPORT_TAGS = "panopto\nlecture-summary";
+
 export const SETTINGS_STORAGE_KEYS = [
   ...PROMPT_STORAGE_KEYS,
   "openaiApiKey",
   "openaiModel",
   "geminiApiKey",
-  "geminiModel"
+  "geminiModel",
+  "obsidianExportFrontmatter",
+  "obsidianExportTags",
+  "obsidianExportMetaInFrontmatter"
 ];
 
 export const HISTORY_STORAGE_KEY = "summaryHistory";
@@ -83,6 +88,10 @@ export function shouldHideCustomInstruction(promptBehavior) {
 }
 
 export function normalizeStoredSettings(stored = {}) {
+  const tagsRaw = stored.obsidianExportTags;
+  const obsidianExportTags =
+    typeof tagsRaw === "string" ? tagsRaw : DEFAULT_OBSIDIAN_EXPORT_TAGS;
+
   return {
     preferredProvider: normalizeProvider(stored.preferredProvider),
     defaultPromptPreset: normalizePromptPreset(stored.defaultPromptPreset),
@@ -91,6 +100,9 @@ export function normalizeStoredSettings(stored = {}) {
     openaiApiKey: stored.openaiApiKey || "",
     openaiModel: stored.openaiModel || OPENAI_MODEL,
     geminiApiKey: stored.geminiApiKey || "",
-    geminiModel: stored.geminiModel || GEMINI_MODEL
+    geminiModel: stored.geminiModel || GEMINI_MODEL,
+    obsidianExportFrontmatter: Boolean(stored.obsidianExportFrontmatter),
+    obsidianExportTags,
+    obsidianExportMetaInFrontmatter: Boolean(stored.obsidianExportMetaInFrontmatter)
   };
 }

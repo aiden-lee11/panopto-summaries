@@ -19,6 +19,13 @@ const openaiApiKeyEl = document.getElementById("openaiApiKey");
 const openaiModelEl = document.getElementById("openaiModel");
 const geminiApiKeyEl = document.getElementById("geminiApiKey");
 const geminiModelEl = document.getElementById("geminiModel");
+const obsidianExportFrontmatterEl = document.getElementById(
+  "obsidianExportFrontmatter"
+);
+const obsidianExportMetaInFrontmatterEl = document.getElementById(
+  "obsidianExportMetaInFrontmatter"
+);
+const obsidianExportTagsEl = document.getElementById("obsidianExportTags");
 const saveBtn = document.getElementById("saveBtn");
 const clearKeysBtn = document.getElementById("clearKeysBtn");
 const clearHistoryBtn = document.getElementById("clearHistoryBtn");
@@ -48,6 +55,16 @@ async function loadSettings() {
   openaiModelEl.value = settings.openaiModel;
   geminiApiKeyEl.value = settings.geminiApiKey || "";
   geminiModelEl.value = settings.geminiModel;
+  if (obsidianExportFrontmatterEl) {
+    obsidianExportFrontmatterEl.checked = settings.obsidianExportFrontmatter;
+  }
+  if (obsidianExportMetaInFrontmatterEl) {
+    obsidianExportMetaInFrontmatterEl.checked =
+      settings.obsidianExportMetaInFrontmatter;
+  }
+  if (obsidianExportTagsEl) {
+    obsidianExportTagsEl.value = settings.obsidianExportTags || "";
+  }
 }
 
 async function saveSettings() {
@@ -60,6 +77,13 @@ async function saveSettings() {
   const openaiModel = openaiModelEl.value.trim() || currentSettings.openaiModel;
   const geminiApiKey = geminiApiKeyEl.value.trim();
   const geminiModel = geminiModelEl.value.trim() || currentSettings.geminiModel;
+  const obsidianExportFrontmatter = Boolean(
+    obsidianExportFrontmatterEl?.checked
+  );
+  const obsidianExportMetaInFrontmatter = Boolean(
+    obsidianExportMetaInFrontmatterEl?.checked
+  );
+  const obsidianExportTags = obsidianExportTagsEl?.value ?? "";
 
   await chrome.storage.local.set({
     preferredProvider,
@@ -69,7 +93,10 @@ async function saveSettings() {
     openaiApiKey,
     openaiModel,
     geminiApiKey,
-    geminiModel
+    geminiModel,
+    obsidianExportFrontmatter,
+    obsidianExportMetaInFrontmatter,
+    obsidianExportTags
   });
 
   if (!openaiApiKey && !geminiApiKey) {
