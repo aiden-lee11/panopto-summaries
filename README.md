@@ -1,6 +1,6 @@
 # Panopto Summarizer
 
-"I will always choose a lazy person to do a difficult job. Because, he will find an easy way to do it." - Bill Gates
+<img width="640" height="489" alt="image" src="https://github.com/user-attachments/assets/fd6558fa-4456-477a-9f86-a99999866481" />
 
 ## 1) Clone
 
