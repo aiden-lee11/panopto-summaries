@@ -1,9 +1,11 @@
 import {
   HISTORY_STORAGE_KEY,
   PROMPT_STORAGE_KEYS,
+  SETTINGS_STORAGE_KEYS,
   normalizeProvider,
   normalizePromptBehavior,
   normalizePromptPreset,
+  normalizeStoredSettings,
   shouldHideCustomInstruction
 } from "./shared.js";
 
@@ -145,7 +147,16 @@ function markdownToHtml(markdown) {
   return out.join("\n");
 }
 
-function openRenderedSummaryTab(result) {
+async function openRenderedSummaryTab(result) {
+  const stored = await chrome.storage.local.get(SETTINGS_STORAGE_KEYS);
+  const settings = normalizeStoredSettings(stored);
+  const exportSettingsForTab = {
+    obsidianExportFrontmatter: settings.obsidianExportFrontmatter,
+    obsidianExportTags: settings.obsidianExportTags,
+    obsidianExportMetaInFrontmatter: settings.obsidianExportMetaInFrontmatter
+  };
+  const exportSettingsEncoded = escapeHtml(JSON.stringify(exportSettingsForTab));
+
   const summaryHtml = markdownToHtml(result.summaryMarkdown || "");
   const sourceTitle = escapeHtml(result.sourceTitle || "Panopto Lecture");
   const generatedAt = escapeHtml(new Date(result.generatedAt).toLocaleString());
@@ -246,7 +257,8 @@ function openRenderedSummaryTab(result) {
       code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       }
-      #summary-payload {
+      #summary-payload,
+      #export-settings-payload {
         display: none !important;
       }
     </style>
@@ -269,6 +281,7 @@ function openRenderedSummaryTab(result) {
     ${summaryHtml}
     ${captionsSectionHtml}
     <pre id="summary-payload">${payloadEncoded}</pre>
+    <pre id="export-settings-payload">${exportSettingsEncoded}</pre>
     <script type="module" src="${summaryTabScriptUrl}"></script>
   </body>
 </html>`;
@@ -345,8 +358,12 @@ function renderHistory(history) {
       };
       setOutput("");
       setStatus("Opening summary tab…");
-      openRenderedSummaryTab(latestResult);
-      setStatus("Summary opened in a new tab.");
+      openRenderedSummaryTab(latestResult)
+        .then(() => setStatus("Summary opened in a new tab."))
+        .catch((error) => {
+          setStatus("Error");
+          setOutput(error?.message || String(error));
+        });
     });
     historyListEl.appendChild(btn);
   }
@@ -488,7 +505,7 @@ async function onSummarizeClick() {
       sourceTitle: tab.title || "Panopto Lecture",
       generatedAt: Date.now()
     };
-    openRenderedSummaryTab(latestResult);
+    await openRenderedSummaryTab(latestResult);
     setOutput("Summary opened in a new tab.");
     await saveHistoryEntry(latestResult);
     await refreshHistory();

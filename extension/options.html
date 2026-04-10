@@ -21,12 +21,27 @@
         margin: 12px 0 6px;
         font-weight: 600;
       }
-      input {
+      input[type="text"],
+      input[type="password"] {
         width: 100%;
         box-sizing: border-box;
         padding: 10px;
         border-radius: 8px;
         border: 1px solid #7774;
+      }
+      input[type="checkbox"] {
+        width: auto;
+        margin-right: 8px;
+      }
+      .checkbox-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0;
+        margin-top: 12px;
+      }
+      .checkbox-row label {
+        margin: 0;
+        font-weight: 500;
       }
       textarea {
         width: 100%;
@@ -135,6 +150,37 @@
 
     <label for="geminiModel">Gemini Model</label>
     <input id="geminiModel" type="text" value="gemini-3-flash-preview" />
+
+    <div class="card">
+      <h2>Obsidian export</h2>
+      <p>
+        When enabled, exported markdown from the summary tab starts with
+        <a
+          href="https://obsidian.md/help/properties"
+          target="_blank"
+          rel="noopener noreferrer"
+          >YAML properties</a
+        >
+        (<code>---</code> frontmatter) for use in Obsidian.
+      </p>
+      <div class="checkbox-row">
+        <input id="obsidianExportFrontmatter" type="checkbox" />
+        <label for="obsidianExportFrontmatter">Prepend YAML frontmatter on export</label>
+      </div>
+      <div class="checkbox-row">
+        <input id="obsidianExportMetaInFrontmatter" type="checkbox" />
+        <label for="obsidianExportMetaInFrontmatter"
+          >Include lecture metadata (<code>generated</code>, <code>provider</code>,
+          <code>model</code>, <code>lecture_title</code>)</label
+        >
+      </div>
+      <label for="obsidianExportTags">Tags (one per line)</label>
+      <textarea
+        id="obsidianExportTags"
+        placeholder="panopto&#10;lecture-summary"
+        spellcheck="false"
+      ></textarea>
+    </div>
 
     <div class="button-row">
       <button id="saveBtn">Save Settings</button>
