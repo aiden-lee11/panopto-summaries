@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Panopto Summarizer",
   "short_name": "Panopto Summarizer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Extract Panopto captions and summarize lectures with your own OpenAI or Gemini API key.",
   "minimum_chrome_version": "116",
   "permissions": [

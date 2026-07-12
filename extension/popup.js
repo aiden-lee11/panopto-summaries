@@ -194,24 +194,75 @@ async function openRenderedSummaryTab(result) {
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${sourceTitle} - Summary</title>
     <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        max-width: 920px;
-        margin: 28px auto;
-        padding: 0 20px;
-        color: #111;
-        line-height: 1.5;
+      :root {
+        color-scheme: light dark;
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        --accent: #2b6cf0;
+        --accent-hover: #1f5be0;
+        --bg: #ffffff;
+        --bg-elev: #f4f6f9;
+        --text: #1a1c1f;
+        --text-muted: #5b6572;
+        --border: #e4e7ec;
+        --border-strong: #d0d5dd;
+        --radius: 10px;
+        --focus: 0 0 0 3px rgba(43, 108, 240, 0.28);
       }
-      h1, h2, h3 { margin: 0.9em 0 0.4em; }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --accent: #4d86ff;
+          --accent-hover: #6a99ff;
+          --bg: #16181d;
+          --bg-elev: #22262e;
+          --text: #e8eaed;
+          --text-muted: #9aa3b0;
+          --border: #2b2f38;
+          --border-strong: #3a3f4a;
+          --focus: 0 0 0 3px rgba(77, 134, 255, 0.4);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: var(--font);
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 40px 24px 64px;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 26px;
+        font-weight: 680;
+        letter-spacing: -0.015em;
+      }
+      h2, h3 { margin: 1.4em 0 0.5em; font-weight: 650; }
+      h2 { font-size: 18px; }
+      h3 { font-size: 15px; }
+      ul, ol { padding-left: 22px; }
+      li { margin-bottom: 4px; }
+      p { margin: 0.6em 0; }
+      strong { font-weight: 650; }
       .meta {
-        margin-bottom: 14px;
-        color: #444;
+        margin: 0 0 20px;
+        color: var(--text-muted);
         font-size: 13px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--border);
       }
       details {
-        margin-top: 18px;
+        margin-top: 24px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px 16px;
+        background: var(--bg-elev);
       }
       summary {
         cursor: pointer;
@@ -220,9 +271,13 @@ async function openRenderedSummaryTab(result) {
       .toolbar {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 10px;
         align-items: center;
-        margin: 10px 0;
+        margin: 0 0 24px;
+        padding: 12px;
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
       }
       .toolbar-group {
         display: flex;
@@ -233,29 +288,50 @@ async function openRenderedSummaryTab(result) {
       .toolbar-separator {
         width: 1px;
         align-self: stretch;
-        background: #ddd;
+        background: var(--border-strong);
       }
       .toolbar-note {
-        color: #444;
+        color: var(--text-muted);
         font-size: 13px;
       }
       button {
-        border: 1px solid #ddd;
-        background: #fff;
-        color: #111;
+        border: 1px solid var(--border-strong);
+        background: var(--bg);
+        color: var(--text);
         border-radius: 8px;
-        padding: 8px 10px;
+        padding: 8px 14px;
+        font: inherit;
+        font-weight: 600;
         cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      }
+      button:hover {
+        background: var(--bg-elev);
+        border-color: var(--accent);
+      }
+      button:focus-visible {
+        outline: none;
+        box-shadow: var(--focus);
+      }
+      #exportMdBtn, #exportObsidianBtn {
+        background: var(--accent);
+        border-color: transparent;
+        color: #fff;
+      }
+      #exportMdBtn:hover, #exportObsidianBtn:hover {
+        background: var(--accent-hover);
       }
       pre {
-        background: #f6f6f6;
-        border: 1px solid #ddd;
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
         border-radius: 8px;
-        padding: 10px;
+        padding: 12px;
         overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 13px;
       }
       code {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-family: var(--mono);
       }
       #summary-payload,
       #export-settings-payload {

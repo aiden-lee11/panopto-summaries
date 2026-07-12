@@ -7,145 +7,321 @@
     <style>
       :root {
         color-scheme: light dark;
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+        --accent: #2b6cf0;
+        --accent-hover: #1f5be0;
+        --accent-contrast: #ffffff;
+
+        --bg: #ffffff;
+        --bg-elev: #f4f6f9;
+        --text: #1a1c1f;
+        --text-muted: #5b6572;
+        --border: #e4e7ec;
+        --border-strong: #d0d5dd;
+
+        --radius: 10px;
+        --radius-sm: 7px;
+
+        --s1: 4px;
+        --s2: 8px;
+        --s3: 12px;
+        --s4: 16px;
+        --s5: 20px;
+
+        --shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+        --focus: 0 0 0 3px rgba(43, 108, 240, 0.28);
       }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --accent: #4d86ff;
+          --accent-hover: #6a99ff;
+          --bg: #16181d;
+          --bg-elev: #1e2128;
+          --text: #e8eaed;
+          --text-muted: #9aa3b0;
+          --border: #2b2f38;
+          --border-strong: #3a3f4a;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+          --focus: 0 0 0 3px rgba(77, 134, 255, 0.4);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         margin: 0;
         min-width: 360px;
         max-width: 360px;
-        font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font: 13px/1.45 var(--font);
+        background: var(--bg);
+        color: var(--text);
       }
+
       .wrap {
-        padding: 12px;
+        padding: var(--s4);
+      }
+
+      .app-header {
+        display: flex;
+        align-items: center;
+        gap: var(--s2);
+        margin-bottom: var(--s4);
+      }
+      .app-logo {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        flex: none;
       }
       h1 {
-        margin: 0 0 10px;
-        font-size: 16px;
+        margin: 0;
+        font-size: 15px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
       }
-      .row {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 10px;
+
+      .field-label {
+        display: block;
+        margin: 0 0 var(--s2);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
       }
+
+      .prompt-row {
+        margin-bottom: var(--s3);
+      }
+
+      /* Segmented provider toggle */
       .provider-row {
         display: flex;
-        gap: 8px;
-        margin-bottom: 10px;
-      }
-      .prompt-row {
-        margin-bottom: 10px;
-      }
-      .prompt-row label {
-        display: block;
-        margin-bottom: 4px;
+        gap: 0;
+        margin-bottom: var(--s4);
+        padding: 3px;
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
       }
       .provider-option {
-        display: inline-flex;
+        position: relative;
+        flex: 1;
+        display: flex;
         align-items: center;
+        justify-content: center;
         gap: 6px;
-        border: 1px solid #7774;
-        border-radius: 8px;
         padding: 6px 8px;
-      }
-      button {
-        border: 1px solid #7774;
-        background: #2f6fed;
-        color: #fff;
-        border-radius: 8px;
-        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        color: var(--text-muted);
         cursor: pointer;
+        transition: background 0.15s, color 0.15s, box-shadow 0.15s;
       }
-      button.secondary {
-        background: transparent;
-        color: inherit;
+      .provider-option:hover {
+        color: var(--text);
       }
-      #status {
-        margin: 8px 0;
-        white-space: pre-wrap;
+      .provider-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
       }
-      #output {
-        margin: 6px 0 0;
-        font-size: 12px;
-        line-height: 1.45;
-        white-space: pre-wrap;
-        word-break: break-word;
+      .provider-option:has(input:checked) {
+        background: var(--bg);
+        color: var(--text);
+        box-shadow: var(--shadow);
       }
-      .hint {
-        opacity: 0.8;
-        margin-top: 6px;
+      .provider-option:has(input:focus-visible) {
+        box-shadow: var(--focus);
       }
-      select {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 7px 8px;
-        border: 1px solid #7774;
-        border-radius: 8px;
-        background: transparent;
-        color: inherit;
-      }
+
+      select,
       textarea {
         width: 100%;
         box-sizing: border-box;
-        min-height: 72px;
-        resize: vertical;
-        padding: 8px;
-        border: 1px solid #7774;
-        border-radius: 8px;
-        background: transparent;
-        color: inherit;
+        padding: 8px 10px;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-sm);
+        background: var(--bg);
+        color: var(--text);
         font: inherit;
+        transition: border-color 0.15s, box-shadow 0.15s;
       }
+      select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a8493' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 30px;
+      }
+      textarea {
+        min-height: 68px;
+        resize: vertical;
+      }
+      select:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: var(--focus);
+      }
+
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s2);
+        margin-bottom: var(--s3);
+      }
+      .btn-row {
+        display: flex;
+        gap: var(--s2);
+      }
+      .btn-row .secondary {
+        flex: 1;
+      }
+
+      button {
+        border: 1px solid transparent;
+        background: var(--accent);
+        color: var(--accent-contrast);
+        border-radius: var(--radius-sm);
+        padding: 9px 12px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      }
+      button:hover {
+        background: var(--accent-hover);
+      }
+      button:focus-visible {
+        outline: none;
+        box-shadow: var(--focus);
+      }
+      #summarizeBtn {
+        width: 100%;
+      }
+      button.secondary {
+        background: var(--bg);
+        color: var(--text);
+        border-color: var(--border-strong);
+      }
+      button.secondary:hover {
+        background: var(--bg-elev);
+      }
+
+      .io {
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: var(--s3);
+        margin-bottom: var(--s3);
+      }
+      #status {
+        margin: 0;
+        font-weight: 600;
+        color: var(--text);
+        white-space: pre-wrap;
+      }
+      #output {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--text-muted);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      #output:not(:empty) {
+        margin-top: var(--s2);
+      }
+
+      .hint {
+        color: var(--text-muted);
+        margin: 0 0 var(--s2);
+      }
+      .meta-note {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.45;
+        color: var(--text-muted);
+      }
+
       .history {
-        margin-top: 12px;
-        border-top: 1px solid #7774;
-        padding-top: 10px;
+        margin-top: var(--s4);
+        border-top: 1px solid var(--border);
+        padding-top: var(--s3);
       }
       .history-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 8px;
+        gap: var(--s2);
+        margin-bottom: var(--s2);
       }
       .history h2 {
         margin: 0;
-        font-size: 13px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
+      }
+      .history-header .secondary {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+      #historyList {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s1);
       }
       .history-item {
         width: 100%;
         text-align: left;
-        background: transparent;
-        color: inherit;
-        border: 1px solid #7774;
-        border-radius: 8px;
-        padding: 7px 8px;
-        margin-bottom: 6px;
-      }
-      .history-empty {
-        opacity: 0.7;
-      }
-      .meta-note {
-        margin-top: 10px;
-        font-size: 11px;
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 8px 10px;
+        font-weight: 500;
+        font-size: 12px;
         line-height: 1.4;
-        opacity: 0.82;
+      }
+      .history-item:hover {
+        background: var(--bg-elev);
+        border-color: var(--border-strong);
+      }
+      #historyList.history-empty {
+        color: var(--text-muted);
+        font-size: 12px;
+        padding: 2px 0;
       }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <h1>Panopto Summarizer</h1>
-      <div class="provider-row">
+      <header class="app-header">
+        <img class="app-logo" src="icons/icon128.png" alt="" />
+        <h1>Panopto Summarizer</h1>
+      </header>
+
+      <div class="provider-row" role="group" aria-label="AI provider">
         <label class="provider-option">
           <input type="radio" name="provider" value="openai" checked />
-          OpenAI
+          <span>OpenAI</span>
         </label>
         <label class="provider-option">
           <input type="radio" name="provider" value="gemini" />
-          Gemini
+          <span>Gemini</span>
         </label>
       </div>
+
       <div class="prompt-row">
-        <label for="promptPreset">Prompt Mode</label>
+        <label class="field-label" for="promptPreset">Prompt Mode</label>
         <select id="promptPreset">
           <option value="custom_instruction_only">Custom Instruction Only</option>
           <option value="bullet_points">Bullet Points</option>
@@ -156,7 +332,7 @@
         </select>
       </div>
       <div class="prompt-row">
-        <label for="promptBehavior">Prompt Behavior</label>
+        <label class="field-label" for="promptBehavior">Prompt Behavior</label>
         <select id="promptBehavior">
           <option value="custom_only">Custom Instruction Only (primary)</option>
           <option value="append_guidance">Preset + custom guidance</option>
@@ -164,24 +340,32 @@
         </select>
       </div>
       <div class="prompt-row" id="customInstructionGroup">
-        <label for="customInstruction">Custom Instruction (override)</label>
+        <label class="field-label" for="customInstruction">Custom Instruction (override)</label>
         <textarea
           id="customInstruction"
           placeholder='Example: "200 word summary of the lecture."'
         ></textarea>
       </div>
-      <div class="row">
+
+      <div class="actions">
         <button id="summarizeBtn">Summarize Current Lecture</button>
-        <button class="secondary" id="copyLectureCaptionsBtn">Copy Captions</button>
-        <button class="secondary" id="settingsBtn">Settings</button>
+        <div class="btn-row">
+          <button class="secondary" id="copyLectureCaptionsBtn">Copy Captions</button>
+          <button class="secondary" id="settingsBtn">Settings</button>
+        </div>
       </div>
-      <div id="status">Ready.</div>
-      <div id="output"></div>
-      <div class="hint">Uses one API call with your selected provider.</div>
-      <div class="meta-note">
+
+      <div class="io">
+        <div id="status">Ready.</div>
+        <div id="output"></div>
+      </div>
+
+      <p class="hint">Uses one API call with your selected provider.</p>
+      <p class="meta-note">
         Transcript text is read from the active Panopto tab only when you run an action here.
         Your selected transcript is then sent to OpenAI or Gemini using your own API key.
-      </div>
+      </p>
+
       <div class="history">
         <div class="history-header">
           <h2>Recent Summaries</h2>
@@ -192,4 +376,4 @@
     </div>
     <script type="module" src="popup.js"></script>
   </body>
-  </html>
+</html>
